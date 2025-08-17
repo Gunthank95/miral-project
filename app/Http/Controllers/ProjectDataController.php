@@ -10,24 +10,23 @@ class ProjectDataController extends Controller
     /**
      * Menampilkan halaman data utama proyek.
      */
+    // GANTI: method show() di ProjectDataController.php
     public function show(Project $project)
     {
-        // Memuat semua relasi yang dibutuhkan dalam satu query untuk efisiensi
-        $project->load([
-            'companies.personnel', // Memuat perusahaan, dan untuk setiap perusahaan, muat juga personilnya
-            'packages'
-        ]);
+        $project->load(['companies.personnel', 'packages']);
 
-        // Mengelompokkan perusahaan berdasarkan peran mereka di proyek
-        $companiesByRole = $project->companies->groupBy('pivot.role_in_project');
+        // Mengelompokkan perusahaan berdasarkan TIPE, bukan peran spesifik
+        $companiesByType = $project->companies->groupBy('type');
+        
+        // Menyiapkan data owner secara terpisah
+        $owner = $project->companies()->where('type', 'owner')->first();
 
-        // Menghitung nilai proyek dari grand total RAB (jika ada)
-        // NOTE: Logika ini memerlukan implementasi RAB. Untuk saat ini, kita beri nilai 0.
         $projectValue = 0; // Ganti dengan logika kalkulasi RAB nanti
 
         return view('projects.data-proyek', [
             'project' => $project,
-            'companiesByRole' => $companiesByRole,
+            'owner' => $owner,
+            'companiesByType' => $companiesByType,
             'projectValue' => $projectValue,
         ]);
     }

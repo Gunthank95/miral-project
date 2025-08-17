@@ -9,13 +9,18 @@
             <h1 class="text-2xl font-bold text-gray-800">Data Utama Proyek</h1>
             <p class="text-sm text-gray-500">{{ $project->name }}</p>
         </div>
-        {{-- GANTI: Tombol Edit akan muncul di sini JIKA diizinkan oleh Policy --}}
         @can('update', $project)
             <a href="{{ route('projects.edit-data', $project->id) }}" class="bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 px-4 rounded transition duration-300">
-                Edit Data
+                Edit Data Umum
             </a>
         @endcan
     </header>
+
+    @if (session('status'))
+        <div class="bg-green-100 border-l-4 border-green-500 text-green-700 p-4 mb-4" role="alert">
+            <p>{{ session('status') }}</p>
+        </div>
+    @endif
 
     <div class="space-y-6">
         {{-- BAGIAN 1: INFORMASI UMUM PROYEK --}}
@@ -32,7 +37,7 @@
                 </div>
                 <div>
                     <strong class="block text-gray-500">Nilai Proyek (dari RAB):</strong>
-                    <span class="text-gray-800">Rp {{ number_format($projectValue, 2, ',', '.') }}</span>
+                    <span class="text-gray-800">Rp {{ number_format($projectValue, 0, ',', '.') }}</span>
                 </div>
                 <div>
                     <strong class="block text-gray-500">Tanggal Mulai:</strong>
@@ -67,86 +72,118 @@
                 <h2 class="text-lg font-semibold">2. Instansi & Personil Terlibat</h2>
                 @can('update', $project)
                     <a href="{{ route('projects.companies.create', $project->id) }}" class="bg-green-500 hover:bg-green-600 text-white text-sm font-bold py-1 px-3 rounded transition duration-300">
-                        + Tambah Perusahaan
+                        + Tambah Instansi
                     </a>
                 @endcan
             </div>
-            <div class="space-y-4">
+            <div class="space-y-6">
+                {{-- Helper Blade Component untuk menampilkan detail perusahaan --}}
                 @php
-                function renderCompanyDetails($project, $company) {
-                    // Menampilkan detail kontrak
-                    echo '<div class="grid grid-cols-1 md:grid-cols-3 gap-x-4 gap-y-2 text-sm mb-3 mt-2 p-3 bg-gray-50 rounded">';
-                        echo '<div><strong class="block text-gray-500 text-xs">No. Kontrak:</strong><span>' . ($company->pivot->contract_number ?? '-') . '</span></div>';
-                        echo '<div><strong class="block text-gray-500 text-xs">Nilai Kontrak:</strong><span>Rp ' . number_format($company->pivot->contract_value ?? 0, 0, ',', '.') . '</span></div>';
-                        echo '<div><strong class="block text-gray-500 text-xs">Tgl. Kontrak:</strong><span>' . ($company->pivot->contract_date ? \Carbon\Carbon::parse($company->pivot->contract_date)->isoFormat('D MMM YYYY') : '-') . '</span></div>';
-                    echo '</div>';
+                function renderCompanyCard($project, $company, $title) {
+                    $isOwner = $company->type === 'owner';
+                @endphp
+                    <div class="border-l-4 {{ $isOwner ? 'border-blue-500' : 'border-gray-400' }} pl-4 py-2">
+                        <div class="flex justify-between items-start mb-2">
+                            <h3 class="font-bold text-md text-gray-800">{{ $title }}: {{ $company->name }}</h3>
+                            @can('updateCompanyDetails', [$project, $company])
+                            <a href="{{ route('projects.companies.edit', ['project' => $project->id, 'company' => $company->id]) }}" class="text-xs text-yellow-600 hover:underline">Edit Detail Perusahaan</a>
+                            @endcan
+                        </div>
+                        
+                        {{-- Detail Perusahaan --}}
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-2 text-sm p-3 bg-gray-50 rounded">
+                            <div><strong class="block text-gray-500 text-xs">Alamat:</strong><span>{{ $company->address ?? '-' }}</span></div>
+                            <div><strong class="block text-gray-500 text-xs">No. Telp:</strong><span>{{ $company->phone_number ?? '-' }}</span></div>
+                            <div><strong class="block text-gray-500 text-xs">Email:</strong><span>{{ $company->email ?? '-' }}</span></div>
+                            
+                            {{-- Tampilkan detail kontrak jika BUKAN owner --}}
+                            @if(!$isOwner)
+                                <div><strong class="block text-gray-500 text-xs">No. Kontrak:</strong><span>{{ $company->pivot->contract_number ?? '-' }}</span></div>
+                                <div><strong class="block text-gray-500 text-xs">Nilai Kontrak:</strong><span>Rp {{ number_format($company->pivot->contract_value ?? 0, 0, ',', '.') }}</span></div>
+                                <div><strong class="block text-gray-500 text-xs">Tgl. Kontrak:</strong><span>{{ $company->pivot->contract_date ? \Carbon\Carbon::parse($company->pivot->contract_date)->isoFormat('D MMM YYYY') : '-' }}</span></div>
+                            @endif
 
-                    // Header untuk tabel personil, termasuk tombol "Tambah Personil"
-                    echo '<div class="flex justify-between items-center mt-4 mb-2">';
-                        echo '<h4 class="text-sm font-semibold text-gray-600">Personil:</h4>';
-                        // Tombol "Tambah Personil" hanya muncul untuk anggota perusahaan itu sendiri
-                        if (auth()->user()->can('updateCompanyDetails', [$project, $company])) {
-                            echo '<a href="' . route('personnel.create', ['project' => $project->id, 'company' => $company->id]) . '" class="bg-blue-500 hover:bg-blue-600 text-white text-xs font-bold py-1 px-2 rounded transition duration-300">+ Tambah Personil</a>';
-                        }
-                    echo '</div>';
+                            {{-- Tampilkan tanggal mulai/selesai khusus untuk Kontraktor --}}
+                            @if($company->type === 'contractor')
+                                <div><strong class="block text-gray-500 text-xs">Tgl. Mulai Kontrak:</strong><span>{{ $company->pivot->start_date_contract ? \Carbon\Carbon::parse($company->pivot->start_date_contract)->isoFormat('D MMM YYYY') : '-' }}</span></div>
+                                <div><strong class="block text-gray-500 text-xs">Tgl. Selesai Kontrak:</strong><span>{{ $company->pivot->end_date_contract ? \Carbon\Carbon::parse($company->pivot->end_date_contract)->isoFormat('D MMM YYYY') : '-' }}</span></div>
+                            @endif
+                        </div>
 
-                    // Tabel Personil
-                    if ($company->personnel && $company->personnel->count() > 0) {
-                        echo '<div class="overflow-x-auto"><table class="min-w-full text-xs">
+                        {{-- Header untuk tabel personil --}}
+                        <div class="flex justify-between items-center mt-4 mb-2">
+                            <h4 class="text-sm font-semibold text-gray-600">Personil:</h4>
+                            @can('updateCompanyDetails', [$project, $company])
+                            <a href="{{ route('personnel.create', ['project' => $project->id, 'company' => $company->id]) }}" class="bg-blue-500 hover:bg-blue-600 text-white text-xs font-bold py-1 px-2 rounded transition duration-300">+ Tambah Personil</a>
+                            @endcan
+                        </div>
+
+                        {{-- Tabel Personil --}}
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full text-xs">
                                 <thead class="bg-gray-50">
                                     <tr>
                                         <th class="px-2 py-1 text-left">Nama</th>
                                         <th class="px-2 py-1 text-left">Jabatan</th>
+                                        <th class="px-2 py-1 text-left">NIK</th>
                                         <th class="px-2 py-1 text-left">No. Telp</th>
-                                        <th class="px-2 py-1 text-left">Email</th>';
-                        // Kolom Aksi hanya muncul untuk anggota perusahaan itu sendiri
-                        if (auth()->user()->can('updateCompanyDetails', [$project, $company])) {
-                           echo '<th class="px-2 py-1 text-left">Aksi</th>';
-                        }
-                        echo '          </tr>
+                                        <th class="px-2 py-1 text-left">Email</th>
+                                        @can('updateCompanyDetails', [$project, $company])<th class="px-2 py-1 text-left">Aksi</th>@endcan
+                                    </tr>
                                 </thead>
-                                <tbody class="bg-white divide-y divide-gray-200">';
-                        foreach ($company->personnel as $person) {
-                            echo '<tr>';
-                            echo '<td class="px-2 py-1">' . ($person->name ?? '-') . '</td>';
-                            echo '<td class="px-2 py-1">' . ($person->position ?? '-') . '</td>';
-                            echo '<td class="px-2 py-1">' . ($person->phone_number ?? '-') . '</td>';
-                            echo '<td class="px-2 py-1">' . ($person->email ?? '-') . '</td>';
-                            // Tombol Aksi hanya muncul untuk anggota perusahaan itu sendiri
-                            if (auth()->user()->can('updateCompanyDetails', [$project, $company])) {
-                                echo '<td class="px-2 py-1 whitespace-nowrap">
-                                        <a href="' . route('personnel.edit', ['project' => $project->id, 'company' => $company->id, 'personnel' => $person->id]) . '" class="text-yellow-600 hover:underline mr-2">Edit</a>
-                                        <form action="' . route('personnel.destroy', ['project' => $project->id, 'company' => $company->id, 'personnel' => $person->id]) . '" method="POST" class="inline" onsubmit="return confirm(\'Anda yakin ingin menghapus personil ini?\');">
-                                            ' . csrf_field() . '
-                                            ' . method_field('DELETE') . '
-                                            <button type="submit" class="text-red-600 hover:underline">Hapus</button>
-                                        </form>
-                                      </td>';
-                            }
-                            echo '</tr>';
-                        }
-                        echo '</tbody></table></div>';
-                    } else {
-                        echo '<p class="text-xs text-gray-400 mt-2">Belum ada data personil untuk perusahaan ini.</p>';
-                    }
+                                <tbody class="bg-white divide-y divide-gray-200">
+                                    @forelse ($company->personnel as $person)
+                                    <tr>
+                                        <td class="px-2 py-1">{{ $person->name ?? '-' }}</td>
+                                        <td class="px-2 py-1">{{ $person->position ?? '-' }}</td>
+                                        <td class="px-2 py-1">{{ $person->nik ?? '-' }}</td>
+                                        <td class="px-2 py-1">{{ $person->phone_number ?? '-' }}</td>
+                                        <td class="px-2 py-1">{{ $person->email ?? '-' }}</td>
+                                        @can('updateCompanyDetails', [$project, $company])
+                                        <td class="px-2 py-1 whitespace-nowrap">
+                                            <a href="{{ route('personnel.edit', ['project' => $project->id, 'company' => $company->id, 'personnel' => $person->id]) }}" class="text-yellow-600 hover:underline mr-2">Edit</a>
+                                            <form action="{{ route('personnel.destroy', ['project' => $project->id, 'company' => $company->id, 'personnel' => $person->id]) }}" method="POST" class="inline" onsubmit="return confirm('Anda yakin ingin menghapus personil ini?');">
+                                                @csrf @method('DELETE')
+                                                <button type="submit" class="text-red-600 hover:underline">Hapus</button>
+                                            </form>
+                                        </td>
+                                        @endcan
+                                    </tr>
+                                    @empty
+                                    <tr><td colspan="6" class="text-center text-gray-400 py-2">Belum ada data personil.</td></tr>
+                                    @endforelse
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                @php
                 }
                 @endphp
 
-                @forelse($project->companies as $company)
-                    @can('viewCompanyDetails', [$project, $company])
-                        <div class="border-l-4 {{ $company->pivot->role_in_project == 'Owner' ? 'border-blue-500' : 'border-gray-400' }} pl-4 py-2">
-                            <div class="flex justify-between items-start">
-                                <h3 class="font-bold text-md text-gray-800">{{ $company->pivot->role_in_project }}: {{ $company->name }}</h3>
-                                @can('updateCompanyDetails', [$project, $company])
-                                <a href="{{ route('projects.companies.edit', ['project' => $project->id, 'company' => $company->id]) }}" class="text-xs text-yellow-600 hover:underline">Edit Detail Perusahaan</a>
-                                @endcan
-                            </div>
-                            @php renderCompanyDetails($project, $company); @endphp
-                        </div>
+                {{-- Render Owner --}}
+                @if($owner)
+                    @can('viewCompanyDetails', [$project, $owner])
+                        @php renderCompanyCard($project, $owner, 'Pemilik (Owner)'); @endphp
                     @endcan
-                @empty
-                    <p class="text-sm text-gray-500">Belum ada perusahaan yang ditambahkan ke proyek ini.</p>
-                @endforelse
+                @endif
+                
+                {{-- Render MK --}}
+                @if(isset($companiesByType['mk']))
+                    @foreach($companiesByType['mk'] as $company)
+                        @can('viewCompanyDetails', [$project, $company])
+                            @php renderCompanyCard($project, $company, 'Manajemen Konstruksi (MK)'); @endphp
+                        @endcan
+                    @endforeach
+                @endif
+                
+                {{-- Render Kontraktor & lainnya --}}
+                @foreach($project->companies as $company)
+                    @if(!in_array($company->type, ['owner', 'mk']))
+                        @can('viewCompanyDetails', [$project, $company])
+                            @php renderCompanyCard($project, $company, $company->pivot->role_in_project); @endphp
+                        @endcan
+                    @endif
+                @endforeach
             </div>
         </div>
     </div>
