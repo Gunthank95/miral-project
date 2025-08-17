@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>@yield('title', 'Miral Project') - Aplikasi Manajemen Proyek</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    {{-- CSS untuk Tom Select DITAMBAHKAN DI SINI --}}
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <link href="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/css/tom-select.css" rel="stylesheet">
 </head>
 <body class="bg-gray-100">
@@ -29,15 +29,28 @@
                     </div>
                     @auth
                     <div class="flex items-center space-x-4">
-                        <div>
+                        <div class="hidden md:block">
                             @include('components.project-selector')
                         </div>
-                        <form method="POST" action="{{ route('logout') }}">
-                            @csrf
-                            <button type="submit" class="text-sm text-gray-600 hover:text-gray-900">
-                                Logout
+                        
+                        <div x-data="{ open: false }" class="relative">
+                            <button @click="open = !open" class="flex items-center space-x-2 focus:outline-none">
+                                <span class="text-sm font-medium text-gray-700">{{ Auth::user()->name }}</span>
+                                <svg class="h-4 w-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                             </button>
-                        </form>
+
+                            <div x-show="open" @click.away="open = false" class="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50">
+                                <a href="{{ route('profile.edit') }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Profil Saya</a>
+                                <div class="border-t border-gray-100"></div>
+                                <form method="POST" action="{{ route('logout') }}">
+                                    @csrf
+                                    <button type="submit" class="w-full text-left block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                                        Logout
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+
                     </div>
                     @endauth
                 </div>
@@ -58,8 +71,8 @@
             </main>
         </div>
     </div>
-
-    {{-- JavaScript untuk Tom Select DITAMBAHKAN DI SINI --}}
+	
+	{{-- JavaScript untuk Tom Select DITAMBAHKAN DI SINI --}}
     <script src="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/js/tom-select.complete.min.js"></script>
     @stack('scripts')
 

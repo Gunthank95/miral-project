@@ -7,6 +7,8 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
+use App\Models\Project;
+use Illuminate\Support\Facades\Storage; // TAMBAHKAN ini
 
 class User extends Authenticatable
 {
@@ -17,11 +19,18 @@ class User extends Authenticatable
      *
      * @var array<int, string>
      */
+    // GANTI: Tambahkan semua field profil baru
     protected $fillable = [
         'name',
         'email',
         'password',
-        'company_id', // Pastikan ini ditambahkan agar bisa diisi saat registrasi
+        'company_id',
+        'role',
+        'position',
+        'temp_project_name',
+        'phone_number',
+        'profile_photo_path',
+        'certifications',
     ];
 
     /**
@@ -43,23 +52,29 @@ class User extends Authenticatable
         'email_verified_at' => 'datetime',
     ];
 
-    // =================================================================
-    // KODE BARU DIMULAI DARI SINI
-    // =================================================================
+    // TAMBAHKAN: Accessor untuk URL foto profil
+    public function getProfilePhotoUrlAttribute()
+    {
+        if ($this->profile_photo_path) {
+            return Storage::url($this->profile_photo_path);
+        }
 
-    /**
-     * Mendefinisikan relasi bahwa seorang User "milik" sebuah Company.
-     */
+        // URL ke gambar default jika tidak ada foto profil
+        return 'https://ui-avatars.com/api/?name=' . urlencode($this->name) . '&background=random';
+    }
+
     public function company()
     {
         return $this->belongsTo(Company::class);
     }
 
-    /**
-     * Mendefinisikan relasi bahwa seorang User bisa memiliki "banyak" penugasan proyek.
-     */
     public function projectAssignments()
     {
         return $this->hasMany(UserProjectRole::class);
     }
+	
+	public function projects()
+	{
+		return $this->belongsToMany(Project::class, 'project_user')->withTimestamps();
+	}
 }

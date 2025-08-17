@@ -5,7 +5,6 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-// Hanya ada SATU deklarasi class
 class Package extends Model
 {
     use HasFactory;
@@ -20,15 +19,27 @@ class Package extends Model
 
     /**
      * Mendefinisikan relasi bahwa sebuah Paket memiliki "banyak" Item RAB.
-     * (Fungsi ini saya pindahkan ke dalam class yang benar)
      */
     public function rabItems()
     {
         return $this->hasMany(RabItem::class, 'package_id');
     }
-	
-	public function dailyReports()
+
+    /**
+     * Mendefinisikan relasi bahwa sebuah Paket memiliki "banyak" Laporan Harian.
+     */
+    public function dailyReports()
     {
         return $this->hasMany(DailyReport::class);
     }
+
+    /**
+     * Mendefinisikan relasi bahwa sebuah Paket memiliki "banyak" Dokumen.
+     */
+    public function documents()
+    {
+        return $this->hasMany(Document::class);
+    }
+	
+	protected $fillable = ['project_id', 'name'];
 }

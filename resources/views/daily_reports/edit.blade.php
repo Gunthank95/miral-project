@@ -18,6 +18,7 @@
     @endif
 
     <div class="space-y-6">
+        <div class="space-y-6">
         <div class="bg-white rounded shadow p-4">
             <h2 class="text-xl font-semibold mb-4 border-b pb-2">1. Informasi Umum</h2>
             <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
@@ -132,6 +133,7 @@
             </div>
         </div>
 
+        {{-- SEKSI 4: AKTIVITAS PEKERJAAN --}}
         <div class="bg-white rounded shadow p-4">
             <div class="flex justify-between items-center mb-4 border-b pb-2">
                 <h2 class="text-xl font-semibold">4. Aktivitas Pekerjaan & Material</h2>
@@ -154,21 +156,33 @@
                     <tbody>
                         @forelse ($report->activities as $activity)
                             <tr class="border-t">
-                                <td class="px-4 py-2 text-center">
-                                    <button class="expand-btn text-blue-500" data-target="details-{{ $activity->id }}">▼</button>
-                                </td>
-                                <td class="px-4 py-2">
-                                    <span class="font-semibold">{{ $activity->rabItem->item_number ?? 'N/A' }}</span>
-                                    {{ $activity->rabItem->item_name ?? 'N/A' }}
-                                </td>
-                                <td class="text-center px-4 py-2">{{ $activity->progress_volume }} {{ $activity->rabItem->unit ?? '' }}
+								<td class="px-4 py-2 text-center">
+									<button class="expand-btn text-blue-500" data-target="details-{{ $activity->id }}">▼</button>
 								</td>
-                                <td class="text-center px-4 py-2">{{ $activity->manpower_count }}</td>
+								<td class="px-4 py-2">
+									@if ($activity->rabItem)
+										<span class="font-semibold">{{ $activity->rabItem->item_number }}</span>
+										{{ $activity->rabItem->item_name }}
+									@else
+										<span class="font-semibold text-orange-600">(Non-BOQ)</span>
+										{{ $activity->custom_work_name }}
+									@endif
+								</td>
+								<td class="text-center px-4 py-2">{{ $activity->progress_volume }} {{ $activity->rabItem->unit ?? '' }}</td>
+								{{-- PERBAIKAN: Menjumlahkan total tenaga kerja dari relasi --}}
+								<td class="text-center px-4 py-2">{{ $activity->manpower->sum('quantity') }}</td>
 								<td class="px-4 py-2 text-right">
-                                    {{-- TOMBOL EDIT BARU --}}
-                                    <a href="{{ route('daily_log.edit', $activity->id) }}" class="text-blue-600 hover:underline text-xs">Edit</a>
-                                </td>
-                            </tr>
+									<div class="flex items-center justify-end space-x-2">
+										<a href="{{ route('daily_log.edit', $activity->id) }}" class="text-blue-600 hover:underline text-xs">Edit</a>
+										{{-- TAMBAHAN: Form untuk tombol Hapus --}}
+										<form action="{{ route('daily_log.destroy', $activity->id) }}" method="POST" onsubmit="return confirm('Anda yakin ingin menghapus aktivitas ini?');">
+											@csrf
+											@method('DELETE')
+											<button type="submit" class="text-red-600 hover:underline text-xs">Hapus</button>
+										</form>
+									</div>
+								</td>
+							</tr>
                             <tr id="details-{{ $activity->id }}" class="hidden border-t bg-gray-50">
                                 <td colspan="4" class="p-4">
                                     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -208,7 +222,7 @@
                                 </td>
                             </tr>
                         @empty
-                            <tr><td colspan="4" class="text-center p-4 text-gray-500">Belum ada aktivitas pekerjaan yang ditambahkan.</td></tr>
+                            <tr><td colspan="5" class="text-center p-4 text-gray-500">Belum ada aktivitas pekerjaan.</td></tr>
                         @endforelse
                     </tbody>
                 </table>

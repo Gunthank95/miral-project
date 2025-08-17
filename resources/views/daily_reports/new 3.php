@@ -36,15 +36,18 @@ class DailyLogController extends Controller
         try {
             $validatedData = $request->validate([
                 'daily_report_id' => 'required|exists:daily_reports,id',
-                'rab_item_id' => 'required|exists:rab_items,id',
-                'progress_volume' => 'required|numeric',
-                'manpower_count' => 'nullable|integer',
+                'rab_item_id' => 'required_without:custom_work_name|nullable|exists:rab_items,id',
+                'custom_work_name' => 'required_without:rab_item_id|nullable|string|max:255',
+                'progress_volume' => 'nullable|numeric',
+                'manpower' => 'nullable|array',
+                'manpower.*.role' => 'sometimes|required|string',
+                'manpower.*.quantity' => 'sometimes|nullable|integer',
                 'materials' => 'nullable|array',
-                'materials.*.id' => 'sometimes|required|exists:materials,id',
+                'materials.*.id' => 'sometimes|required_with:materials.*.quantity|exists:materials,id',
                 'materials.*.quantity' => 'sometimes|nullable|numeric',
-                'materials.*.unit' => 'sometimes|required|string',
+                'materials.*.unit' => 'sometimes|required_with:materials.*.id|string',
                 'equipment' => 'nullable|array',
-                'equipment.*.name' => 'sometimes|required|string',
+                'equipment.*.name' => 'sometimes|required_with:equipment.*.quantity|string',
                 'equipment.*.quantity' => 'sometimes|nullable|integer',
                 'equipment.*.specification' => 'nullable|string',
                 'photos' => 'nullable|array',
@@ -53,19 +56,39 @@ class DailyLogController extends Controller
 
             $dailyReport = DailyReport::find($validatedData['daily_report_id']);
 
+            if (!empty($validatedData['rab_item_id'])) {
+                $existingLog = DailyLog::where('daily_report_id', $validatedData['daily_report_id'])
+                                       ->where('rab_item_id', $validatedData['rab_item_id'])
+                                       ->first();
+                if ($existingLog) {
+                    throw ValidationException::withMessages([
+                        'rab_item_id' => 'Item pekerjaan ini sudah dilaporkan hari ini.',
+                    ]);
+                }
+            }
+
             $dailyLog = DailyLog::create([
                 'daily_report_id' => $validatedData['daily_report_id'],
                 'package_id' => $package->id,
-                'rab_item_id' => $validatedData['rab_item_id'],
+                'rab_item_id' => $validatedData['rab_item_id'] ?? null,
+                'custom_work_name' => $validatedData['custom_work_name'] ?? null,
                 'user_id' => Auth::id(),
                 'log_date' => $dailyReport->report_date,
-                'progress_volume' => $validatedData['progress_volume'],
-                'manpower_count' => $validatedData['manpower_count'] ?? null,
+                'progress_volume' => $validatedData['progress_volume'] ?? 0,
+                'manpower_count' => null,
             ]);
 
-            // ======================================================
-            // LOGIKA PENYIMPANAN MATERIAL YANG HILANG
-            // ======================================================
+            if ($request->filled('manpower')) {
+                foreach ($request->manpower as $manpowerData) {
+                    if (!empty($manpowerData['role'])) {
+                        $dailyLog->manpower()->create([
+                            'role' => $manpowerData['role'],
+                            'quantity' => $manpowerData['quantity'] ?? 0,
+                        ]);
+                    }
+                }
+            }
+            
             if ($request->filled('materials')) {
                 foreach ($request->materials as $materialData) {
                     if (!empty($materialData['id'])) {
@@ -79,9 +102,6 @@ class DailyLogController extends Controller
                 }
             }
 
-            // ======================================================
-            // LOGIKA PENYIMPANAN PERALATAN
-            // ======================================================
             if ($request->filled('equipment')) {
                 foreach ($request->equipment as $equipmentData) {
                     if (!empty($equipmentData['name'])) {
@@ -94,9 +114,6 @@ class DailyLogController extends Controller
                 }
             }
 
-            // ======================================================
-            // LOGIKA PENYIMPANAN FOTO
-            // ======================================================
             if ($request->hasFile('photos')) {
                 foreach ($request->file('photos') as $photo) {
                     if ($photo) {
@@ -128,15 +145,11 @@ class DailyLogController extends Controller
         }
     }
 
-    /**
-     * FUNGSI EDIT YANG DIPERBARUI
-     */
     public function edit(DailyLog $daily_log)
     {
         $report = $daily_log->report;
         $package = $report->package;
         $materials = Material::orderBy('name')->get();
-
         $mainRabItems = $package->rabItems()->whereNull('parent_id')->get()->sortBy('id');
         
         $rabOptions = collect();
@@ -158,13 +171,11 @@ class DailyLogController extends Controller
         ]);
     }
 
-    /**
-     * FUNGSI UPDATE YANG DIPERBARUI
-     */
     public function update(Request $request, DailyLog $daily_log)
     {
         $validatedData = $request->validate([
-            'rab_item_id' => 'required|exists:rab_items,id', // Sekarang divalidasi
+            'rab_item_id' => 'required_without:custom_work_name|nullable|exists:rab_items,id',
+            'custom_work_name' => 'required_without:rab_item_id|nullable|string|max:255',
             'progress_volume' => 'required|numeric',
             'manpower_count' => 'nullable|integer',
             'materials' => 'nullable|array',
@@ -174,10 +185,8 @@ class DailyLogController extends Controller
             'deleted_photos' => 'nullable|string',
         ]);
 
-        // 1. Update data utama
         $daily_log->update($validatedData);
 
-        // 2. Sinkronisasi Material
         $daily_log->materials()->delete();
         if ($request->filled('materials')) {
             foreach ($request->materials as $materialData) {
@@ -192,7 +201,6 @@ class DailyLogController extends Controller
             }
         }
 
-        // 3. Sinkronisasi Peralatan
         $daily_log->equipment()->delete();
         if ($request->filled('equipment')) {
             foreach ($request->equipment as $equipmentData) {
@@ -207,7 +215,6 @@ class DailyLogController extends Controller
             }
         }
         
-        // 4. Hapus Foto Lama
         if ($request->filled('deleted_photos')) {
             $deletedPhotoIds = explode(',', $request->deleted_photos);
             $photosToDelete = DailyLogPhoto::whereIn('id', $deletedPhotoIds)->get();
@@ -217,7 +224,6 @@ class DailyLogController extends Controller
             }
         }
 
-        // 5. Tambah Foto Baru
         if ($request->hasFile('photos')) {
             foreach ($request->file('photos') as $photo) {
                 if ($photo) {
@@ -229,15 +235,33 @@ class DailyLogController extends Controller
                 }
             }
         }
-
-        // Menitipkan pesan sukses ke session
-		$request->session()->flash('success', 'Aktivitas pekerjaan berhasil diperbarui!');
 		
-		// Mengirim respons untuk AJAX
-        if ($request->wantsJson()) {
-            return response()->json(['success' => true, 'redirect_url' => route('daily_reports.edit', ['package' => $daily_log->package_id, 'daily_report' => $daily_log->daily_report_id])]);
+		$daily_log->manpower()->delete(); // Hapus yang lama
+		if ($request->filled('manpower')) {
+			foreach ($request->manpower as $manpowerData) {
+				if (!empty($manpowerData['role'])) {
+					$daily_log->manpower()->create([
+						'role' => $manpowerData['role'],
+						'quantity' => $manpowerData['quantity'] ?? 0,
+					]);
+				}
+			}
+		}
+
+        return redirect()->route('daily_reports.edit', ['package' => $daily_log->package_id, 'daily_report' => $daily_log->daily_report_id])
+                         ->with('success', 'Aktivitas pekerjaan berhasil diperbarui!');
+    }
+    
+    public function destroy(DailyLog $daily_log)
+    {
+        $package_id = $daily_log->package_id;
+        $daily_report_id = $daily_log->daily_report_id;
+        foreach ($daily_log->photos as $photo) {
+            Storage::disk('public')->delete($photo->file_path);
         }
-        return redirect()->route('daily_reports.edit', ['package' => $daily_log->package_id, 'daily_report' => $daily_log->daily_report_id]);
+        $daily_log->delete();
+        return redirect()->route('daily_reports.edit', ['package' => $package_id, 'daily_report' => $daily_report_id])
+                         ->with('success', 'Aktivitas pekerjaan berhasil dihapus.');
     }
     
     // Helper functions

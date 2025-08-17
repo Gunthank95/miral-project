@@ -4,7 +4,7 @@
         <div class="bg-white rounded shadow p-4">
             <div class="flex justify-between items-center mb-2 border-b pb-2">
                 <h2 class="text-xl font-semibold">Aktivitas Pekerjaan</h2>
-                <button id="toggle-progress-details" class="text-xs text-blue-600 hover:underline">Sembunyikan Detail Progres</button>
+                <button id="toggle-progress-details" class="text-xs text-blue-600 hover:underline">Sembunyikan Detail</button>
             </div>
             <div class="overflow-x-auto">
                 <table class="min-w-full text-sm">
@@ -19,11 +19,11 @@
                         </tr>
                         <tr class="progress-details">
                             <th class="text-center px-2 py-1 border font-normal">Lalu</th>
-                            <th class="text-center px-2 py-1 border font-normal">Hari Ini</th>
-                            <th class="text-center px-2 py-1 border font-normal">S.d Hari Ini</th>
+                            <th class="text-center px-2 py-1 border font-normal">Periode Ini</th>
+                            <th class="text-center px-2 py-1 border font-normal">S.d Saat Ini</th>
                             <th class="text-center px-2 py-1 border font-normal">Lalu</th>
-                            <th class="text-center px-2 py-1 border font-normal">Hari Ini</th>
-                            <th class="text-center px-2 py-1 border font-normal">S.d Hari Ini</th>
+                            <th class="text-center px-2 py-1 border font-normal">Periode Ini</th>
+                            <th class="text-center px-2 py-1 border font-normal">S.d Saat Ini</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -31,23 +31,29 @@
                             @php
                                 $rabItem = $activity->rabItem;
                                 $volLalu = $activity->previous_progress_volume;
-                                $volHariIni = $activity->progress_volume;
-                                $volTotal = $volLalu + $volHariIni;
+                                $volPeriodeIni = $activity->progress_volume;
+                                $volTotal = $volLalu + $volPeriodeIni;
                                 
-                                $progLalu = ($rabItem->volume > 0) ? ($volLalu / $rabItem->volume) * $rabItem->weighting : 0;
-                                $progHariIni = ($rabItem->volume > 0) ? ($volHariIni / $rabItem->volume) * $rabItem->weighting : 0;
-                                $progTotal = $progLalu + $progHariIni;
+                                $progLalu = ($rabItem && $rabItem->volume > 0) ? ($volLalu / $rabItem->volume) * $rabItem->weighting : 0;
+                                $progPeriodeIni = ($rabItem && $rabItem->volume > 0) ? ($volPeriodeIni / $rabItem->volume) * $rabItem->weighting : 0;
+                                $progTotal = $progLalu + $progPeriodeIni;
                             @endphp
                             <tr class="border-t">
-                                <td class="px-4 py-2 border"><span class="font-semibold">{{ $rabItem->item_number }}</span> {{ $rabItem->item_name }}</td>
-                                <td class="text-center px-4 py-2 border">{{ $rabItem->unit }}</td>
-                                <td class="text-center px-4 py-2 border">{{ number_format($rabItem->volume, 2) }}</td>
-                                <td class="text-center px-4 py-2 border">{{ number_format($rabItem->weighting, 2) }}%</td>
+                                <td class="px-4 py-2 border">
+                                    @if ($rabItem)
+                                        <span class="font-semibold">{{ $rabItem->item_number }}</span> {{ $rabItem->item_name }}
+                                    @else
+                                        <span class="font-semibold text-orange-600">(Non-BOQ)</span> {{ $activity->custom_work_name }}
+                                    @endif
+                                </td>
+                                <td class="text-center px-4 py-2 border">{{ $rabItem->unit ?? '-' }}</td>
+                                <td class="text-center px-4 py-2 border">{{ $rabItem ? number_format($rabItem->volume, 2) : '-' }}</td>
+                                <td class="text-center px-4 py-2 border">{{ $rabItem ? number_format($rabItem->weighting, 2) . '%' : '-' }}</td>
                                 <td class="text-center px-2 py-1 border progress-details">{{ number_format($volLalu, 2) }}</td>
-                                <td class="text-center px-2 py-1 border progress-details">{{ number_format($volHariIni, 2) }}</td>
+                                <td class="text-center px-2 py-1 border progress-details">{{ number_format($volPeriodeIni, 2) }}</td>
                                 <td class="text-center px-2 py-1 border progress-details">{{ number_format($volTotal, 2) }}</td>
                                 <td class="text-center px-2 py-1 border progress-details">{{ number_format($progLalu, 2) }}%</td>
-                                <td class="text-center px-2 py-1 border progress-details">{{ number_format($progHariIni, 2) }}%</td>
+                                <td class="text-center px-2 py-1 border progress-details">{{ number_format($progPeriodeIni, 2) }}%</td>
                                 <td class="text-center px-2 py-1 border progress-details">{{ number_format($progTotal, 2) }}%</td>
                             </tr>
                         @empty

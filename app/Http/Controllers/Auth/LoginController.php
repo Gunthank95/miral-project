@@ -16,26 +16,29 @@ class LoginController extends Controller
 
     // Proses login
     public function login(Request $request)
-    {
-        $credentials = $request->validate([
-            'email' => ['required', 'email'],
-            'password' => ['required'],
-        ]);
+	{
+		$credentials = $request->validate([
+			'email' => ['required', 'email'],
+			'password' => ['required'],
+		]);
 
-        if (Auth::attempt($credentials)) {
-            $request->session()->regenerate();
+		if (Auth::attempt($credentials)) {
+			$request->session()->regenerate();
 
-            // ======================================================
-            // BAGIAN INI SATU-SATUNYA YANG KITA UBAH
-            // Kita tidak lagi butuh redirect yang rumit, cukup arahkan ke /dashboard
-            return redirect()->intended('/dashboard');
-            // ======================================================
-        }
+			$user = Auth::user();
 
-        return back()->withErrors([
-            'email' => 'Email atau password salah.',
-        ])->onlyInput('email');
-    }
+			// PERBAIKAN: Periksa peran pengguna setelah login
+			if ($user->role === 'super_admin') {
+				return redirect()->route('superadmin.dashboard');
+			}
+
+			return redirect()->intended('/dashboard');
+		}
+
+		return back()->withErrors([
+			'email' => 'Email atau password salah.',
+		])->onlyInput('email');
+	}
 
     // Logout
     public function logout(Request $request)

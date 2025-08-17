@@ -27,4 +27,16 @@ class UserProjectRole extends Model
     {
         return $this->belongsTo(Project::class);
     }
+	
+	/**
+	 * The attributes that are mass assignable.
+	 *
+	 * @var array<int, string>
+	 */
+	protected $fillable = [
+		'user_id',
+		'project_id',
+		'package_id',
+		'role',
+	];
 }
