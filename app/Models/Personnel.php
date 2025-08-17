@@ -1,5 +1,4 @@
 <?php
-// GANTI isi file Personnel.php
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -8,6 +7,9 @@ use Illuminate\Database\Eloquent\Model;
 class Personnel extends Model
 {
     use HasFactory;
+
+    // TAMBAHKAN: Baris ini memberitahu Laravel nama tabel yang benar.
+    protected $table = 'personnel';
 
     protected $fillable = [
         'company_id',
