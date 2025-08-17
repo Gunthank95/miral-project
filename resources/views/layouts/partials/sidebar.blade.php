@@ -37,18 +37,7 @@
                 </a>
             </div>
         </div>
-        <div>
-            <h4 class="px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Data Utama Proyek</h4>
-            <div class="mt-2 space-y-1">
-                <a href="{{ route('rab.index', $package->id ?? $activeProject->id) }}" class="block px-4 py-2 text-sm rounded {{ request()->routeIs('rab.index') ? 'bg-blue-500 text-white' : 'text-gray-600 hover:bg-gray-100' }}">
-                    RAB (Rencana Anggaran Biaya)
-                </a>
-                <a href="{{ route('documents.index', $package->id ?? $activeProject->id) }}" class="block px-4 py-2 text-sm rounded {{ request()->routeIs('documents.index') ? 'bg-blue-500 text-white' : 'text-gray-600 hover:bg-gray-100' }}">
-                    Gambar & Dokumen
-                </a>
-            </div>
-        </div>
-		
+        
 		{{-- GANTI: Grup menu ini diubah menjadi Manajemen Pengguna --}}
 		<div>
 			<h4 class="px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Manajemen Pengguna</h4>

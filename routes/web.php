@@ -18,6 +18,8 @@ use App\Http\Controllers\AdminProjectRegisterController;
 use App\Http\Controllers\InvitationController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\ProjectCompanyController;
+use App\Http\Controllers\PersonnelController;
 
 /*
 |--------------------------------------------------------------------------
@@ -51,7 +53,6 @@ Route::post('/projects', [ProjectRegistrationController::class, 'store'])->name(
 
 // --- ROUTE UNTUK SUPER ADMIN (Perlu Login & Peran Super Admin) ---
 Route::prefix('superadmin')->middleware(['auth', 'super.admin'])->name('superadmin.')->group(function () {
-    Route::get('/project/{project}/data-proyek', [\App\Http\Controllers\ProjectDataController::class, 'show'])->name('projects.data-proyek');
 	Route::get('/dashboard', [SuperAdminController::class, 'dashboard'])->name('dashboard');
     Route::get('/registration-tokens', [SuperAdminController::class, 'tokensIndex'])->name('tokens.index');
     Route::post('/registration-tokens', [SuperAdminController::class, 'tokensStore'])->name('tokens.store');
@@ -64,6 +65,29 @@ Route::middleware('auth')->group(function () {
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
 
     Route::get('/project/{project}/data-proyek', [\App\Http\Controllers\ProjectDataController::class, 'show'])->name('projects.data-proyek');
+	
+	// TAMBAHKAN: Rute untuk menampilkan form edit dan memproses update data proyek
+    Route::get('/project/{project}/edit-data', [\App\Http\Controllers\ProjectDataController::class, 'edit'])->name('projects.edit-data');
+    Route::patch('/project/{project}/update-data', [\App\Http\Controllers\ProjectDataController::class, 'update'])->name('projects.update-data');
+	
+	// TAMBAHKAN: Rute untuk Manajemen Perusahaan dalam Proyek
+    Route::prefix('/project/{project}/companies')->name('projects.companies.')->group(function () {
+        Route::get('/create', [ProjectCompanyController::class, 'create'])->name('create');
+        Route::post('/', [ProjectCompanyController::class, 'store'])->name('store');
+        Route::get('/{company}/edit', [ProjectCompanyController::class, 'edit'])->name('edit');
+        Route::patch('/{company}', [ProjectCompanyController::class, 'update'])->name('update');
+        // Rute untuk delete bisa ditambahkan di sini nanti
+    });
+	
+	// TAMBAHKAN: Rute untuk Manajemen Personil
+    Route::prefix('/project/{project}/companies/{company}/personnel')->name('personnel.')->group(function () {
+        Route::get('/create', [PersonnelController::class, 'create'])->name('create');
+        Route::post('/', [PersonnelController::class, 'store'])->name('store');
+        Route::get('/{personnel}/edit', [PersonnelController::class, 'edit'])->name('edit');
+        Route::patch('/{personnel}', [PersonnelController::class, 'update'])->name('update');
+        Route::delete('/{personnel}', [PersonnelController::class, 'destroy'])->name('destroy');
+    });
+	
 	Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
     Route::get('/project/{project}', [ProjectController::class, 'show'])->name('project.show');
     Route::post('/project/switch', [ProjectSwitchController::class, 'switchProject'])->name('project.switch');
