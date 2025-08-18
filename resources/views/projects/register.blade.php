@@ -27,18 +27,22 @@
 
     <form action="{{ route('projects.store') }}" method="POST" class="bg-white rounded shadow p-6 space-y-6">
         @csrf
+        {{-- Bagian 1: Detail Proyek --}}
         <div>
             <h2 class="text-lg font-semibold border-b pb-2 mb-4">1. Informasi Proyek</h2>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                     <label for="project_name" class="block text-sm font-medium text-gray-700">Nama Proyek</label>
-                    {{-- GANTI: Tambahkan logika untuk mengisi otomatis --}}
                     <input type="text" name="project_name" id="project_name" value="{{ old('project_name', $prefilledProjectName ?? '') }}" required class="mt-1 w-full border rounded px-3 py-2">
                 </div>
                 <div>
                     <label for="owner_company" class="block text-sm font-medium text-gray-700">Nama Perusahaan Owner</label>
-                    {{-- GANTI: Tambahkan logika untuk mengisi otomatis --}}
-                    <input type="text" name="owner_company" id="owner_company" value="{{ old('owner_company', $prefilledOwnerCompany ?? '') }}" required class="mt-1 w-full border rounded px-3 py-2">
+                    {{-- GANTI: Logika pengisian otomatis --}}
+                    @if(isset($userCompany) && $userCompany->type == 'owner')
+                        <input type="text" name="owner_company" id="owner_company" value="{{ $userCompany->name }}" readonly class="mt-1 w-full border rounded px-3 py-2 bg-gray-100">
+                    @else
+                        <input type="text" name="owner_company" id="owner_company" value="{{ old('owner_company') }}" required class="mt-1 w-full border rounded px-3 py-2">
+                    @endif
                 </div>
                 <div class="md:col-span-2">
                     <label for="project_location" class="block text-sm font-medium text-gray-700">Lokasi Proyek</label>
@@ -47,6 +51,7 @@
             </div>
         </div>
 
+        {{-- Bagian 2: Paket Pekerjaan (Dinamis) --}}
         <div>
             <h2 class="text-lg font-semibold border-b pb-2 mb-4">2. Paket Pekerjaan & Perusahaan Terlibat</h2>
             <div id="packages-container" class="space-y-4">
@@ -94,6 +99,9 @@ document.addEventListener('DOMContentLoaded', function() {
     const addPackageBtn = document.getElementById('add-package-btn');
     let packageCounter = {{ count(old('packages', [])) }};
 
+    // GANTI: logika pengisian otomatis untuk kontraktor
+    const userCompany = @json($userCompany ?? null);
+    
     function addPackageRow() {
         packageCounter++;
         const row = document.createElement('div');
@@ -119,8 +127,16 @@ document.addEventListener('DOMContentLoaded', function() {
             </div>
         `;
         packagesContainer.appendChild(row);
-    }
 
+        const contractorInput = row.querySelector('input[name*="[contractor_company]"]');
+
+        if (userCompany && userCompany.type === 'contractor') {
+            contractorInput.value = userCompany.name;
+            contractorInput.readOnly = true;
+            contractorInput.classList.add('bg-gray-100');
+        }
+    }
+    
     addPackageBtn.addEventListener('click', addPackageRow);
     
     packagesContainer.addEventListener('click', function(e) {

@@ -23,36 +23,46 @@ class ProfileController extends Controller
     /**
      * Memperbarui informasi profil pengguna.
      */
+    // GANTI: method update() di ProfileController.php
     public function update(Request $request)
     {
         $user = $request->user();
 
         $request->validate([
             'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'string', 'email', 'max:255', Rule::unique('users')->ignore($user->id)],
+            'email' => ['required', 'string', 'email', 'max:255', \Illuminate\Validation\Rule::unique('users')->ignore($user->id)],
             'phone_number' => ['nullable', 'string', 'max:20'],
             'certifications' => ['nullable', 'string'],
-            'profile_photo' => ['nullable', 'image', 'max:2048'], // Maks 2MB
+            'profile_photo' => ['nullable', 'image', 'max:2048'],
         ]);
 
-        // Proses upload foto jika ada
         if ($request->hasFile('profile_photo')) {
-            // Hapus foto lama jika ada
             if ($user->profile_photo_path) {
-                Storage::disk('public')->delete($user->profile_photo_path);
+                \Illuminate\Support\Facades\Storage::disk('public')->delete($user->profile_photo_path);
             }
-            // Simpan foto baru
             $path = $request->file('profile_photo')->store('profile-photos', 'public');
             $user->profile_photo_path = $path;
         }
 
-        // Update data lain
         $user->name = $request->name;
         $user->email = $request->email;
         $user->phone_number = $request->phone_number;
         $user->certifications = $request->certifications;
         
         $user->save();
+
+        // GANTI: Logika update atau buat data Personnel
+        $user->personnel()->updateOrCreate(
+            ['user_id' => $user->id],
+            [
+                'company_id' => $user->company_id,
+                'name' => $user->name,
+                // TAMBAHKAN: Memberikan nilai default jika position kosong
+                'position' => $user->position ?? 'Jabatan Belum Diisi',
+                'email' => $user->email,
+                'phone_number' => $user->phone_number,
+            ]
+        );
 
         return redirect()->route('profile.edit')->with('status', 'Profil berhasil diperbarui!');
     }

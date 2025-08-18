@@ -77,4 +77,10 @@ class User extends Authenticatable
 	{
 		return $this->belongsToMany(Project::class, 'project_user')->withTimestamps();
 	}
+	
+	// TAMBAHKAN: Relasi one-to-one ke Personnel
+    public function personnel()
+    {
+        return $this->hasOne(Personnel::class);
+    }
 }

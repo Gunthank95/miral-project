@@ -18,12 +18,18 @@ class ProjectRegistrationController extends Controller
     public function create()
     {
         $user = auth()->user();
-        
-        // Oper data dari user yang login ke view
-        return view('projects.register', [
-            'prefilledProjectName' => $user->temp_project_name,
-            'prefilledOwnerCompany' => $user->company->name, // Ambil nama perusahaan dari relasi
-        ]);
+
+        // Ambil data dari user yang sedang login untuk diisi otomatis di form
+        $prefilledProjectName = $user->temp_project_name;
+        $userCompany = $user->company; // Asumsi relasi 'company' sudah ada di model User
+
+        // Siapkan data untuk dioper ke view
+        $viewData = [
+            'prefilledProjectName' => $prefilledProjectName,
+            'userCompany' => $userCompany,
+        ];
+
+        return view('projects.register', $viewData);
     }
 
     /**

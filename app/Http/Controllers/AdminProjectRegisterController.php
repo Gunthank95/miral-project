@@ -27,61 +27,60 @@ class AdminProjectRegisterController extends Controller
     public function register(Request $request)
 	{
 		$request->validate([
-            // Validasi untuk data baru
             'project_name' => ['required', 'string', 'max:255'],
             'company_name' => ['required', 'string', 'max:255'],
             'company_role' => ['required', 'string', 'in:owner,mk,contractor'],
             'position' => ['required', 'string', 'max:255'],
-
-            // Validasi yang sudah ada
 			'name' => ['required', 'string', 'max:255'],
 			'email' => ['required', 'string', 'email', 'max:255', 'unique:users'],
 			'password' => ['required', 'string', 'min:8', 'confirmed'],
 			'token' => ['required', 'string'],
 		]);
 
-		$token = RegistrationToken::where('token', $request->token)->whereNull('used_at')->first();
+		$token = \App\Models\RegistrationToken::where('token', $request->token)->whereNull('used_at')->first();
 
 		if (!$token) {
 			return back()->withErrors(['token' => 'Token registrasi tidak valid atau sudah digunakan.'])->withInput();
 		}
 
-		// Memulai transaksi database untuk memastikan semua data tersimpan
-		DB::beginTransaction();
+		\Illuminate\Support\Facades\DB::beginTransaction();
 		try {
-			// 1. Buat perusahaan baru berdasarkan input dari form
-			$company = Company::create([
-				'name' => $request->company_name,
-				'type' => $request->company_role
-			]);
+			// TAMBAHKAN: Cek jika perusahaan dengan nama yang sama sudah ada
+            $company = \App\Models\Company::firstOrCreate(
+                ['name' => $request->company_name],
+                ['type' => $request->company_role]
+            );
 
-			// 2. Buat user baru dan hubungkan ke data yang diinput
-			$user = User::create([
+			$user = \App\Models\User::create([
 				'name' => $request->name,
 				'email' => $request->email,
-				'password' => Hash::make($request->password),
+				'password' => \Illuminate\Support\Facades\Hash::make($request->password),
 				'role' => 'admin_project',
                 'position' => $request->position,
                 'temp_project_name' => $request->project_name,
-				'company_id' => $company->id, // Hubungkan ke perusahaan
+				'company_id' => $company->id,
 			]);
 
-			// 3. Tandai token sebagai sudah digunakan
+            $user->personnel()->create([
+                'company_id' => $user->company_id,
+                'name' => $user->name,
+                'position' => $user->position,
+                'email' => $user->email,
+            ]);
+
 			$token->update([
 				'email' => $user->email,
-				'used_at' => Carbon::now(),
+				'used_at' => \Carbon\Carbon::now(),
 			]);
 
-			DB::commit(); // Simpan semua perubahan
+			\Illuminate\Support\Facades\DB::commit();
 
-			// 4. Langsung loginkan user yang baru mendaftar
 			Auth::login($user);
 
-			// 5. Arahkan ke halaman pendaftaran proyek
 			return redirect()->route('projects.register.create');
 
 		} catch (\Exception $e) {
-			DB::rollBack(); // Batalkan semua jika ada error
+			\Illuminate\Support\Facades\DB::rollBack();
 			return back()->withErrors(['token' => 'Terjadi kesalahan: ' . $e->getMessage()])->withInput();
 		}
 	}

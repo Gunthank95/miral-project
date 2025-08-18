@@ -12,6 +12,7 @@ class Personnel extends Model
     protected $table = 'personnel';
 
     protected $fillable = [
+        'user_id',
         'company_id',
         'name',
         'position',
@@ -28,5 +29,11 @@ class Personnel extends Model
     public function projects()
     {
         return $this->belongsToMany(Project::class, 'project_personnel');
+    }
+	
+	// TAMBAHKAN: Relasi one-to-one ke User
+    public function user()
+    {
+        return $this->belongsTo(User::class);
     }
 }
