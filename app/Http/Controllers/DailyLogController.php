@@ -2,256 +2,68 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Package;
+// TAMBAHKAN: Panggil Form Request yang baru
+use App\Http\Requests\StoreDailyLogRequest;
+use App\Http\Requests\UpdateDailyLogRequest;
 use App\Models\DailyLog;
 use App\Models\DailyReport;
-use App\Models\Material;
-use App\Models\DailyLogMaterial;
-use App\Models\DailyLogEquipment;
-use App\Models\DailyLogPhoto;
-use App\Models\RabItem;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Validation\ValidationException;
+use Illuminate\Support\Facades\DB;
 
 class DailyLogController extends Controller
 {
-    public function create(DailyReport $daily_report)
+    // GANTI: Gunakan StoreDailyLogRequest di sini
+    public function store(StoreDailyLogRequest $request, DailyReport $daily_report)
     {
-        $package = $daily_report->package;
-        $mainRabItems = $package->rabItems()->whereNull('parent_id')->get()->sortBy('id');
-        $materials = Material::orderBy('name')->get();
+        // GANTI: Ambil data yang sudah tervalidasi
+        $validated = $request->validated();
+        
+        DB::transaction(function () use ($daily_report, $validated, $request) {
+            $logData = [
+                'user_id' => auth()->id(),
+                'package_id' => $daily_report->package_id,
+                'rab_item_id' => $validated['rab_item_id'] ?? null,
+                'custom_work_name' => $validated['custom_work_name'] ?? null,
+                'progress_volume' => $validated['progress_volume'],
+                'description' => $validated['description'] ?? null,
+                'log_date' => $daily_report->report_date,
+            ];
 
-        return view('daily_logs.create', [
-            'package' => $package,
-            'report' => $daily_report,
-            'mainRabItems' => $mainRabItems,
-            'materials' => $materials,
-        ]);
-    }
-
-    public function store(Request $request, Package $package)
-    {
-        try {
-            $validatedData = $request->validate([
-                'daily_report_id' => 'required|exists:daily_reports,id',
-                'rab_item_id' => 'required_without:custom_work_name|nullable|exists:rab_items,id',
-                'custom_work_name' => 'required_without:rab_item_id|nullable|string|max:255',
-                'progress_volume' => 'nullable|numeric',
-                'manpower' => 'nullable|array',
-                'manpower.*.role' => 'sometimes|required|string',
-                'manpower.*.quantity' => 'sometimes|nullable|integer',
-                'materials' => 'nullable|array',
-                'materials.*.id' => 'sometimes|required_with:materials.*.quantity|exists:materials,id',
-                'materials.*.quantity' => 'sometimes|nullable|numeric',
-                'materials.*.unit' => 'sometimes|required_with:materials.*.id|string',
-                'equipment' => 'nullable|array',
-                'equipment.*.name' => 'sometimes|required_with:equipment.*.quantity|string',
-                'equipment.*.quantity' => 'sometimes|nullable|integer',
-                'equipment.*.specification' => 'nullable|string',
-                'photos' => 'nullable|array',
-                'photos.*' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:5120'
-            ]);
-
-            $dailyReport = DailyReport::find($validatedData['daily_report_id']);
-
-            if (!empty($validatedData['rab_item_id'])) {
-                $existingLog = DailyLog::where('daily_report_id', $validatedData['daily_report_id'])
-                                       ->where('rab_item_id', $validatedData['rab_item_id'])
-                                       ->first();
-                if ($existingLog) {
-                    throw ValidationException::withMessages([
-                        'rab_item_id' => 'Item pekerjaan ini sudah dilaporkan hari ini.',
-                    ]);
-                }
-            }
-
-            $dailyLog = DailyLog::create([
-                'daily_report_id' => $validatedData['daily_report_id'],
-                'package_id' => $package->id,
-                'rab_item_id' => $validatedData['rab_item_id'] ?? null,
-                'custom_work_name' => $validatedData['custom_work_name'] ?? null,
-                'user_id' => Auth::id(),
-                'log_date' => $dailyReport->report_date,
-                'progress_volume' => $validatedData['progress_volume'] ?? 0,
-                'manpower_count' => null,
-            ]);
-
-            if ($request->filled('manpower')) {
-                foreach ($request->manpower as $manpowerData) {
-                    if (!empty($manpowerData['role'])) {
-                        $dailyLog->manpower()->create([
-                            'role' => $manpowerData['role'],
-                            'quantity' => $manpowerData['quantity'] ?? 0,
-                        ]);
-                    }
-                }
-            }
-            
-            if ($request->filled('materials')) {
-                foreach ($request->materials as $materialData) {
-                    if (!empty($materialData['id'])) {
-                        DailyLogMaterial::create([
-                            'daily_log_id' => $dailyLog->id,
-                            'material_id' => $materialData['id'],
-                            'quantity' => $materialData['quantity'] ?? 0,
-                            'unit' => $materialData['unit'],
-                        ]);
-                    }
-                }
-            }
-
-            if ($request->filled('equipment')) {
-                foreach ($request->equipment as $equipmentData) {
-                    if (!empty($equipmentData['name'])) {
-                        $dailyLog->equipment()->create([
-                            'name' => $equipmentData['name'],
-                            'quantity' => $equipmentData['quantity'] ?? 1,
-                            'specification' => $equipmentData['specification'],
-                        ]);
-                    }
-                }
-            }
+            $dailyLog = $daily_report->activities()->create($logData);
 
             if ($request->hasFile('photos')) {
                 foreach ($request->file('photos') as $photo) {
-                    if ($photo) {
-                        $path = $photo->store('photos', 'public');
-                        DailyLogPhoto::create([
-                            'daily_log_id' => $dailyLog->id,
-                            'file_path' => $path,
-                        ]);
-                    }
+                    $path = $photo->store('daily_log_photos', 'public');
+                    $dailyLog->photos()->create(['photo_path' => $path]);
                 }
             }
 
-            $request->session()->flash('success', 'Aktivitas pekerjaan berhasil ditambahkan!');
-
-            if ($request->wantsJson()) {
-                return response()->json(['success' => true, 'redirect_url' => route('daily_reports.edit', ['package' => $package->id, 'daily_report' => $dailyReport->id])]);
+            if (isset($validated['materials'])) {
+                foreach ($validated['materials'] as $material) {
+                    $dailyLog->materials()->create($material);
+                }
             }
-            return redirect()->route('daily_reports.edit', ['package' => $package->id, 'daily_report' => $dailyReport->id]);
 
-        } catch (ValidationException $e) {
-            if ($request->wantsJson()) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Data tidak valid. Silakan periksa kembali isian Anda.',
-                    'errors' => $e->errors()
-                ], 422);
+            if (isset($validated['equipment'])) {
+                foreach ($validated['equipment'] as $equip) {
+                    $dailyLog->equipment()->create($equip);
+                }
             }
-            return back()->withErrors($e->errors())->withInput();
-        }
+        });
+
+        return back()->with('success', 'Aktivitas berhasil ditambahkan.');
     }
 
-    public function edit(DailyLog $daily_log)
+    // GANTI: Gunakan UpdateDailyLogRequest di sini
+    public function update(UpdateDailyLogRequest $request, DailyLog $daily_log)
     {
-        $report = $daily_log->report;
-        $package = $report->package;
-        $materials = Material::orderBy('name')->get();
-        $mainRabItems = $package->rabItems()->whereNull('parent_id')->get()->sortBy('id');
+        // GANTI: Ambil data yang sudah tervalidasi
+        $validated = $request->validated();
+        $daily_log->update($validated);
         
-        $rabOptions = collect();
-        if ($daily_log->rabItem && $daily_log->rabItem->parent_id) {
-            $rabOptions = $package->rabItems()->where('parent_id', $daily_log->rabItem->parent_id)->get()->sortBy('id');
-        } else if ($daily_log->rabItem) {
-            $rabOptions = collect([$daily_log->rabItem]);
-        }
-
-        $daily_log->load('materials.material', 'equipment', 'photos', 'rabItem.parent');
-
-        return view('daily_logs.edit', [
-            'package' => $package,
-            'report' => $report,
-            'activity' => $daily_log,
-            'mainRabItems' => $mainRabItems,
-            'rabOptions' => $rabOptions,
-            'materials' => $materials,
-        ]);
-    }
-
-    public function update(Request $request, DailyLog $daily_log)
-    {
-        $validatedData = $request->validate([
-            'rab_item_id' => 'required_without:custom_work_name|nullable|exists:rab_items,id',
-            'custom_work_name' => 'required_without:rab_item_id|nullable|string|max:255',
-            'progress_volume' => 'required|numeric',
-            'manpower_count' => 'nullable|integer',
-            'materials' => 'nullable|array',
-            'equipment' => 'nullable|array',
-            'photos' => 'nullable|array',
-            'photos.*' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:5120',
-            'deleted_photos' => 'nullable|string',
-        ]);
-
-        $daily_log->update($validatedData);
-
-        $daily_log->materials()->delete();
-        if ($request->filled('materials')) {
-            foreach ($request->materials as $materialData) {
-                if (!empty($materialData['id'])) {
-                    DailyLogMaterial::create([
-                        'daily_log_id' => $daily_log->id,
-                        'material_id' => $materialData['id'],
-                        'quantity' => $materialData['quantity'] ?? 0,
-                        'unit' => $materialData['unit'],
-                    ]);
-                }
-            }
-        }
-
-        $daily_log->equipment()->delete();
-        if ($request->filled('equipment')) {
-            foreach ($request->equipment as $equipmentData) {
-                if (!empty($equipmentData['name'])) {
-                    DailyLogEquipment::create([
-                        'daily_log_id' => $daily_log->id,
-                        'name' => $equipmentData['name'],
-                        'quantity' => $equipmentData['quantity'] ?? 1,
-                        'specification' => $equipmentData['specification'],
-                    ]);
-                }
-            }
-        }
-        
-        if ($request->filled('deleted_photos')) {
-            $deletedPhotoIds = explode(',', $request->deleted_photos);
-            $photosToDelete = DailyLogPhoto::whereIn('id', $deletedPhotoIds)->get();
-            foreach($photosToDelete as $photo) {
-                Storage::disk('public')->delete($photo->file_path);
-                $photo->delete();
-            }
-        }
-
-        if ($request->hasFile('photos')) {
-            foreach ($request->file('photos') as $photo) {
-                if ($photo) {
-                    $path = $photo->store('photos', 'public');
-                    DailyLogPhoto::create([
-                        'daily_log_id' => $daily_log->id,
-                        'file_path' => $path,
-                    ]);
-                }
-            }
-        }
-		
-		$daily_log->manpower()->delete(); // Hapus yang lama
-		if ($request->filled('manpower')) {
-			foreach ($request->manpower as $manpowerData) {
-				if (!empty($manpowerData['role'])) {
-					$daily_log->manpower()->create([
-						'role' => $manpowerData['role'],
-						'quantity' => $manpowerData['quantity'] ?? 0,
-					]);
-				}
-			}
-		}
-
         return redirect()->route('daily_reports.edit', ['package' => $daily_log->package_id, 'daily_report' => $daily_log->daily_report_id])
-                         ->with('success', 'Aktivitas pekerjaan berhasil diperbarui!');
+                         ->with('success', 'Aktivitas berhasil diperbarui.');
     }
-    
+
     public function destroy(DailyLog $daily_log)
     {
         $package_id = $daily_log->package_id;

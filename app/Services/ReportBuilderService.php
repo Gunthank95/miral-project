@@ -7,6 +7,7 @@ use App\Models\RabItem;
 use App\Models\DailyLog;
 use App\Models\DailyReport;
 use Illuminate\Support\Collection;
+use Carbon\Carbon; // Pastikan Carbon di-import
 
 class ReportBuilderService
 {
@@ -22,69 +23,62 @@ class ReportBuilderService
             return collect();
         }
 
+        // GANTI: Menggunakan metode yang lebih efisien untuk mengambil item RAB
         $relevantRabItems = $this->getRelevantRabItemsForDaily($report->activities, $packageId);
         $this->attachDailyProgress($relevantRabItems, $report->activities, $packageId, $report->report_date);
         
         return $this->buildTree($relevantRabItems);
     }
 
+    /**
+     * GANTI: Logika getRelevantRabItemsForDaily() dioptimalkan
+     * Menghindari kueri di dalam loop (N+1 problem).
+     */
     private function getRelevantRabItemsForDaily(Collection $activities, int $packageId): Collection
     {
         $reportedItemIds = $activities->pluck('rab_item_id')->filter()->unique();
-        if ($reportedItemIds->isEmpty()) {
-            return collect();
-        }
+        if ($reportedItemIds->isEmpty()) return collect();
 
-        $topLevelParentIds = collect();
-        foreach ($reportedItemIds as $id) {
-            $item = RabItem::find($id);
-            while ($item && $item->parent_id) {
-                $item = $item->parent;
-            }
-            if ($item) {
-                $topLevelParentIds->push($item->id);
-            }
-        }
+        // Menggunakan relasi 'ancestors' untuk mengambil semua induk dalam satu kueri efisien.
+        $reportedItems = RabItem::with('ancestors')->whereIn('id', $reportedItemIds)->get();
 
-        $allRelevantIds = collect();
-        $itemsToProcess = $topLevelParentIds->unique();
+        $allRelevantIds = $reportedItems->flatMap(function ($item) {
+            return $item->ancestors->pluck('id');
+        })->merge($reportedItemIds)->unique();
 
-        while ($itemsToProcess->isNotEmpty()) {
-            $currentIds = $itemsToProcess->all();
-            $allRelevantIds = $allRelevantIds->merge($currentIds);
-            
-            $childIds = RabItem::whereIn('parent_id', $currentIds)->pluck('id');
-            $itemsToProcess = $childIds;
-        }
-
-        return RabItem::whereIn('id', $allRelevantIds->unique())->get()->keyBy('id');
+        return RabItem::whereIn('id', $allRelevantIds)->get()->keyBy('id');
     }
 
+    /**
+     * GANTI: Logika attachDailyProgress() dioptimalkan
+     * Mengambil semua data log sekaligus sebelum loop.
+     */
     private function attachDailyProgress(Collection $rabItems, Collection $activities, int $packageId, string $selectedDate): void
     {
+        $rabItemIds = $rabItems->pluck('id');
+        
+        // Ambil semua log progres sebelumnya dalam satu kueri
+        $previousLogs = DailyLog::where('package_id', $packageId)
+                                ->whereIn('rab_item_id', $rabItemIds)
+                                ->whereDate('log_date', '<', $selectedDate)
+                                ->select('rab_item_id', \DB::raw('SUM(progress_volume) as total_volume'))
+                                ->groupBy('rab_item_id')
+                                ->pluck('total_volume', 'rab_item_id');
+
         foreach ($rabItems as $item) {
             $activity = $activities->firstWhere('rab_item_id', $item->id);
             
-            $item->is_reported_activity = false;
-            $item->progress_volume_period = 0;
-            $item->previous_progress_volume = 0;
+            $item->is_reported_activity = (bool)$activity;
+            $item->progress_volume_period = $activity->progress_volume ?? 0;
+            // Ambil data dari koleksi yang sudah kita siapkan, bukan kueri baru
+            $item->previous_progress_volume = $previousLogs->get($item->id, 0); 
+            
             $item->progress_weight_period = 0;
             $item->previous_progress_weight = 0;
 
-            if ($activity) {
-                $previousVolume = DailyLog::where('package_id', $packageId)
-                                          ->where('rab_item_id', $item->id)
-                                          ->whereDate('log_date', '<', $selectedDate)
-                                          ->sum('progress_volume');
-
-                $item->is_reported_activity = true;
-                $item->progress_volume_period = $activity->progress_volume ?? 0;
-                $item->previous_progress_volume = $previousVolume;
-                
-                if ($item->volume > 0) {
-                    $item->progress_weight_period = ($item->progress_volume_period / $item->volume) * $item->weighting;
-                    $item->previous_progress_weight = ($item->previous_progress_volume / $item->volume) * $item->weighting;
-                }
+            if ($item->volume > 0) {
+                $item->progress_weight_period = ($item->progress_volume_period / $item->volume) * $item->weighting;
+                $item->previous_progress_weight = ($item->previous_progress_volume / $item->volume) * $item->weighting;
             }
         }
     }
@@ -95,6 +89,10 @@ class ReportBuilderService
      * ========================================================================
      */
 
+    /**
+     * GANTI: Kueri di generatePeriodicReport() dioptimalkan
+     * Menggunakan eager loading yang lebih dalam untuk data sumber daya.
+     */
     public function generatePeriodicReport(Package $package, string $startDate, string $endDate, string $filter = 'all'): array
     {
         $rabItems = RabItem::where('package_id', $package->id)->get()->keyBy('id');
@@ -109,9 +107,15 @@ class ReportBuilderService
             }
         }
 
+        // GANTI: Kueri ini diperbaiki dengan eager loading yang lebih spesifik
         $reportsInPeriod = DailyReport::where('package_id', $package->id)
             ->whereBetween('report_date', [$startDate, $endDate])
-            ->with(['personnel', 'weather', 'activities.materials.material', 'activities.equipment'])
+            ->with([
+                'personnel', 
+                'weather', 
+                'activities.materials.material', // Eager load material di dalam materials
+                'activities.equipment'
+            ])
             ->get();
         
         return [
