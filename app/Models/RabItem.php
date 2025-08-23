@@ -8,36 +8,34 @@ use Illuminate\Database\Eloquent\Model;
 class RabItem extends Model
 {
     use HasFactory;
+    protected $fillable = ['package_id', 'parent_id', 'item_number', 'item_name', 'unit', 'volume', 'unit_price', 'total_price', 'weighting'];
 
-    /**
-     * The attributes that are mass assignable.
-     *
-     * @var array<int, string>
-     */
-    protected $fillable = [
-        'package_id',
-        'parent_id',
-        'item_number',
-        'item_name',
-        'volume',
-        'unit',
-        'unit_price',
-        'weighting',
-    ];
+    public function package()
+    {
+        return $this->belongsTo(Package::class);
+    }
 
-    /**
-     * FUNGSI YANG HILANG: Mendapatkan data induk (parent) dari item ini.
-     */
     public function parent()
     {
         return $this->belongsTo(RabItem::class, 'parent_id');
     }
 
-    /**
-     * Mendapatkan data anak (children) dari item ini.
-     */
     public function children()
     {
         return $this->hasMany(RabItem::class, 'parent_id');
+    }
+
+    public function dailyLogs()
+    {
+        return $this->hasMany(DailyLog::class);
+    }
+    
+    /**
+     * TAMBAHKAN: Relasi baru untuk mengambil semua induk/leluhur.
+     * Ini adalah kunci agar `with('ancestors')` di controller bisa berfungsi.
+     */
+    public function ancestors()
+    {
+        return $this->parent()->with('ancestors');
     }
 }

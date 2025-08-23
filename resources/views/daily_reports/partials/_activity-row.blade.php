@@ -1,28 +1,17 @@
 @php
     $padding = $level * 20;
-    // Judul/Sub-item adalah item yang tidak punya volume kontrak (is_null)
     $isTitle = is_null($item->volume); 
-    $hasChildren = $item->children->isNotEmpty();
+    $hasChildren = !empty($item->children) && $item->children->isNotEmpty();
 
-    if ($isTitle) {
-        // Jika ini judul, volumenya 0 atau strip. Bobotnya diambil dari hasil akumulasi di controller.
-        $volLalu = 0;
-        $volPeriodeIni = 0;
-        
-        $progLalu = $item->previous_progress_weight;
-        $progPeriodeIni = $item->progress_weight_period;
-
-    } else {
-        // Jika ini item pekerjaan, volumenya sesuai laporan. Bobotnya dihitung di sini.
-        $volLalu = $item->previous_progress_volume;
-        $volPeriodeIni = $item->progress_volume;
-
-        $progLalu = $item->previous_progress_weight;
-        $progPeriodeIni = $item->progress_weight_period;
-    }
-
-    $volTotal = $volLalu + $volPeriodeIni;
+    // Mengambil nilai progres langsung dari item, karena sudah diakumulasi di controller
+    $progLalu = $item->previous_progress_weight ?? 0;
+    $progPeriodeIni = $item->progress_weight_period ?? 0;
     $progTotal = $progLalu + $progPeriodeIni;
+
+    // Mengambil nilai volume (hanya untuk item pekerjaan, bukan judul)
+    $volLalu = $item->previous_progress_volume ?? 0;
+    $volPeriodeIni = $item->progress_volume_period ?? 0;
+    $volTotal = $volLalu + $volPeriodeIni;
 @endphp
 
 <tr class="border-t {{ $isTitle ? 'bg-gray-100 font-semibold' : 'bg-white' }}">
@@ -34,8 +23,7 @@
     <td class="text-center px-4 py-2 border">{{ $item->unit }}</td>
     {{-- Volume Kontrak --}}
     <td class="text-center px-4 py-2 border">{{ $isTitle ? '-' : number_format($item->volume, 2) }}</td>
-    
-    {{-- GANTI: Logika untuk Bobot Kontrak diubah di baris ini --}}
+    {{-- Bobot Kontrak --}}
     <td class="text-center px-4 py-2 border">{{ $item->weighting ? number_format($item->weighting, 2) . '%' : '-' }}</td>
     
     {{-- Kolom Volume --}}
