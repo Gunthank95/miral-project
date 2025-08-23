@@ -4,14 +4,26 @@ namespace App\Http\Controllers;
 
 use App\Models\Package;
 use App\Models\DailyReport;
-use App\Models\DailyLog;
-use App\Models\RabItem;
+use App\Models\DailyReportWeather;
+use App\Models\DailyReportPersonnel;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Carbon\Carbon;
+use App\Services\ReportBuilderService; // TAMBAHKAN
 
 class DailyReportController extends Controller
 {
+    // TAMBAHKAN: Properti dan constructor untuk inject service
+    protected $reportBuilder;
+
+    public function __construct(ReportBuilderService $reportBuilder)
+    {
+        $this->reportBuilder = $reportBuilder;
+    }
+
+    /**
+     * GANTI: Logika index() menjadi lebih ramping
+     */
     public function index(Request $request, Package $package)
     {
         $selectedDate = $request->input('date') ? Carbon::parse($request->input('date')) : Carbon::today();
@@ -27,20 +39,10 @@ class DailyReportController extends Controller
                               'activities.photos'
                           ])
                           ->first();
-
-        $activityTree = collect();
-
-        if ($report && $report->activities->isNotEmpty()) {
-            // Langkah 1: Ambil SEMUA item RAB yang relevan (termasuk yang tidak dilaporkan)
-            $allRelevantRabItems = $this->getRelevantRabItems($report->activities, $package->id);
-
-            // Langkah 2: Tempelkan progres HANYA pada item yang ada di koleksi ini
-            $this->attachProgressToItems($allRelevantRabItems, $report->activities, $package->id, $selectedDate);
-            
-            // Langkah 3: Bangun pohon dan kalkulasi bobot
-            $activityTree = $this->buildTree($allRelevantRabItems);
-        }
         
+        // GANTI: Panggil service untuk membangun pohon aktivitas
+        $activityTree = $report ? $this->reportBuilder->generateDailyReport($report, $package->id) : collect();
+
         $viewData = [
             'package' => $package,
             'report' => $report,
@@ -58,113 +60,6 @@ class DailyReportController extends Controller
         return view('daily_reports.index', $viewData);
     }
     
-    /**
-     * GANTI: Logika getRelevantRabItems() disempurnakan.
-     * Menggunakan pendekatan yang lebih pasti untuk mendapatkan semua item dan induknya.
-     */
-    private function getRelevantRabItems($activities, $packageId)
-    {
-        $reportedItemIds = $activities->pluck('rab_item_id')->filter()->unique();
-        if ($reportedItemIds->isEmpty()) {
-            return collect();
-        }
-
-        // Cari tahu apa saja item level 1 (induk utama) dari pekerjaan yang dilaporkan
-        $topLevelParentIds = collect();
-        foreach ($reportedItemIds as $id) {
-            $item = RabItem::find($id);
-            while ($item && $item->parent_id) {
-                $item = $item->parent;
-            }
-            if ($item) {
-                $topLevelParentIds->push($item->id);
-            }
-        }
-
-        // Ambil semua item di dalam package yang merupakan bagian dari cabang-cabang induk utama tersebut
-        $allRelevantIds = collect();
-        $itemsToProcess = $topLevelParentIds->unique();
-
-        while ($itemsToProcess->isNotEmpty()) {
-            $currentIds = $itemsToProcess->all();
-            $allRelevantIds = $allRelevantIds->merge($currentIds);
-            
-            $childIds = RabItem::whereIn('parent_id', $currentIds)->pluck('id');
-            $itemsToProcess = $childIds;
-        }
-
-        return RabItem::whereIn('id', $allRelevantIds->unique())->get()->keyBy('id');
-    }
-
-    /**
-     * GANTI: Logika attachProgressToItems()
-     * Memastikan semua properti progres diinisialisasi dengan benar.
-     */
-    private function attachProgressToItems($rabItems, $activities, $packageId, $selectedDate)
-    {
-        foreach ($rabItems as $item) {
-            $activity = $activities->firstWhere('rab_item_id', $item->id);
-            
-            // Inisialisasi semua nilai progres menjadi 0
-            $item->is_reported_activity = false;
-            $item->progress_volume_period = 0;
-            $item->previous_progress_volume = 0;
-            $item->progress_weight_period = 0;
-            $item->previous_progress_weight = 0;
-
-            // Jika item ini dilaporkan, baru isi data progresnya
-            if ($activity) {
-                $previousVolume = DailyLog::where('package_id', $packageId)
-                                          ->where('rab_item_id', $item->id)
-                                          ->whereDate('log_date', '<', $selectedDate)
-                                          ->sum('progress_volume');
-
-                $item->is_reported_activity = true;
-                $item->progress_volume_period = $activity->progress_volume ?? 0;
-                $item->previous_progress_volume = $previousVolume;
-                
-                if ($item->volume > 0) {
-                    $item->progress_weight_period = ($item->progress_volume_period / $item->volume) * $item->weighting;
-                    $item->previous_progress_weight = ($item->previous_progress_volume / $item->volume) * $item->weighting;
-                }
-            }
-        }
-    }
-
-    /**
-     * GANTI: Logika buildTree()
-     * Ini adalah perubahan KUNCI. Fungsi ini sekarang mengakumulasi bobot
-     * 'Lalu' dan 'Periode Ini' secara terpisah.
-     */
-    private function buildTree($items, $parentId = null)
-    {
-        $branch = collect();
-        $childrenOfParent = $items->where('parent_id', $parentId)->sortBy('id');
-
-        foreach ($childrenOfParent as $item) {
-            $children = $this->buildTree($items, $item->id);
-            
-            // Setel anak-anak ke item
-            $item->children = $children;
-            
-            // Kalkulasi Bobot Kontrak untuk sub-item (jika belum ada)
-            if (is_null($item->volume)) {
-                $item->weighting = $children->sum('weighting');
-            }
-
-            // Akumulasi Bobot Progres dari anak-anaknya
-            $item->previous_progress_weight += $children->sum('previous_progress_weight');
-            $item->progress_weight_period += $children->sum('progress_weight_period');
-
-            $branch->push($item);
-        }
-
-        // HANYA tampilkan cabang yang punya progres atau bobot kontrak
-        return $branch->filter(function ($item) {
-            return ($item->previous_progress_weight + $item->progress_weight_period) > 0 || $item->weighting > 0;
-        });
-    }
-
     public function create(Request $request, Package $package)
     {
         $targetDate = $request->input('date') ? Carbon::parse($request->input('date')) : Carbon::today();
