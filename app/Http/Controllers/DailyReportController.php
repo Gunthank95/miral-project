@@ -2,20 +2,18 @@
 
 namespace App\Http\Controllers;
 
+// ... (Use statements tetap sama) ...
 use App\Models\Package;
 use App\Models\DailyReport;
 use App\Models\DailyLog;
-use App\Models\DailyReportWeather;
-use App\Models\DailyReportPersonnel;
+use App\Models\RabItem;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth; // <-- PERBAIKAN UTAMA DI SINI
+use Illuminate\Support\Facades\Auth;
 use Carbon\Carbon;
 
 class DailyReportController extends Controller
 {
-    /**
-     * Menampilkan ringkasan laporan harian untuk tanggal yang dipilih.
-     */
+    // ... (Fungsi index() tetap sama) ...
     public function index(Request $request, Package $package)
     {
         $selectedDate = $request->input('date') ? Carbon::parse($request->input('date')) : Carbon::today();
@@ -32,20 +30,19 @@ class DailyReportController extends Controller
                           ])
                           ->first();
 
+        $activityTree = collect();
+
         if ($report) {
-            foreach ($report->activities as $activity) {
-                $previousVolume = DailyLog::where('package_id', $package->id)
-                                          ->where('rab_item_id', $activity->rab_item_id)
-                                          ->whereDate('log_date', '<', $selectedDate)
-                                          ->sum('progress_volume');
-                $activity->previous_progress_volume = $previousVolume;
-            }
+            $relevantRabItems = $this->getRelevantRabItems($report->activities); // Fungsi ini yang kita perbaiki
+            $this->attachProgressToItems($relevantRabItems, $report->activities, $package->id, $selectedDate);
+            $activityTree = $this->buildTree($relevantRabItems);
         }
         
         $viewData = [
             'package' => $package,
             'report' => $report,
             'selectedDate' => $selectedDate->toDateString(),
+            'activityTree' => $activityTree,
         ];
 
         if ($request->ajax()) {
@@ -57,11 +54,95 @@ class DailyReportController extends Controller
 
         return view('daily_reports.index', $viewData);
     }
-
+    
     /**
-     * Membuat draft laporan baru untuk tanggal yang dipilih atau redirect ke yang sudah ada.
+     * GANTI: Logika fungsi getRelevantRabItems()
+     * Fungsi ini diubah menjadi lebih efisien dan andal dalam mengumpulkan semua item
+     * yang relevan (item yang dilaporkan beserta semua induknya).
      */
-    public function create(Request $request, Package $package)
+    private function getRelevantRabItems($activities)
+    {
+        $reportedItemIds = $activities->pluck('rab_item_id')->filter()->unique();
+
+        if ($reportedItemIds->isEmpty()) {
+            return collect();
+        }
+
+        $allItemIds = $reportedItemIds->toArray();
+        $parentIdsToFetch = $reportedItemIds;
+
+        // Loop untuk mencari semua parent ID sampai ke akar
+        while ($parentIdsToFetch->isNotEmpty()) {
+            // Ambil parent_id dari item-item saat ini
+            $items = RabItem::whereIn('id', $parentIdsToFetch->toArray())->get(['id', 'parent_id']);
+            $parentIds = $items->pluck('parent_id')->filter()->unique();
+
+            // Cek apakah ada parent baru yang belum ada di daftar
+            $newParentIds = array_diff($parentIds->toArray(), $allItemIds);
+
+            if (empty($newParentIds)) {
+                break; // Berhenti jika tidak ada parent baru
+            }
+            
+            // Tambahkan parent baru ke daftar dan siapkan untuk iterasi berikutnya
+            $allItemIds = array_merge($allItemIds, $newParentIds);
+            $parentIdsToFetch = collect($newParentIds);
+        }
+
+        // Setelah semua ID terkumpul, ambil data lengkapnya dari database
+        return RabItem::whereIn('id', $allItemIds)->get()->keyBy('id');
+    }
+
+
+    // ... (Sisa fungsi lainnya: attachProgressToItems(), buildTree(), create(), edit(), dll. tetap sama) ...
+    private function attachProgressToItems($rabItems, $activities, $packageId, $selectedDate)
+    {
+        foreach ($rabItems as $item) {
+            $activity = $activities->firstWhere('rab_item_id', $item->id);
+            
+            $previousVolume = DailyLog::where('package_id', $packageId)
+                                      ->where('rab_item_id', $item->id)
+                                      ->whereDate('log_date', '<', $selectedDate)
+                                      ->sum('progress_volume');
+
+            $item->progress_volume = $activity->progress_volume ?? 0;
+            $item->previous_progress_volume = $previousVolume;
+            $item->is_reported_activity = (bool)$activity;
+
+            $item->progress_weight_period = 0;
+            $item->previous_progress_weight = 0;
+
+            if ($item->volume > 0) {
+                $item->progress_weight_period = ($item->progress_volume / $item->volume) * $item->weighting;
+                $item->previous_progress_weight = ($item->previous_progress_volume / $item->volume) * $item->weighting;
+            }
+        }
+    }
+
+    private function buildTree($items, $parentId = null)
+    {
+        $branch = collect();
+
+        foreach ($items->where('parent_id', $parentId)->sortBy('id') as $item) {
+            $children = $this->buildTree($items, $item->id);
+            
+            if ($children->isNotEmpty() || $item->is_reported_activity) {
+                $item->children = $children;
+
+                $item->progress_weight_period += $children->sum('progress_weight_period');
+                $item->previous_progress_weight += $children->sum('previous_progress_weight');
+                
+                $item->progress_volume += $children->sum('progress_volume');
+                $item->previous_progress_volume += $children->sum('previous_progress_volume');
+
+                $branch->push($item);
+            }
+        }
+
+        return $branch;
+    }
+	
+	public function create(Request $request, Package $package)
     {
         $targetDate = $request->input('date') ? Carbon::parse($request->input('date')) : Carbon::today();
 
@@ -79,9 +160,6 @@ class DailyReportController extends Controller
         return redirect()->route('daily_reports.edit', ['package' => $package->id, 'daily_report' => $report->id]);
     }
 
-    /**
-     * Menampilkan halaman pembuatan/edit laporan harian.
-     */
     public function edit(Package $package, DailyReport $daily_report)
     {
         if ($daily_report->personnel->isEmpty() && $daily_report->wasRecentlyCreated) {
@@ -109,8 +187,7 @@ class DailyReportController extends Controller
             'report' => $daily_report,
         ]);
     }
-
-    //(Fungsi-fungsi store dan destroy untuk Weather dan Personnel) 
+ 
     public function storeWeather(Request $request, DailyReport $daily_report)
     {
         $validated = $request->validate([

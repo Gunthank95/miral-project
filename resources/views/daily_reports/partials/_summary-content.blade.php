@@ -27,35 +27,9 @@
                         </tr>
                     </thead>
                     <tbody>
-                        @forelse ($report->activities as $activity)
-                            @php
-                                $rabItem = $activity->rabItem;
-                                $volLalu = $activity->previous_progress_volume;
-                                $volPeriodeIni = $activity->progress_volume;
-                                $volTotal = $volLalu + $volPeriodeIni;
-                                
-                                $progLalu = ($rabItem && $rabItem->volume > 0) ? ($volLalu / $rabItem->volume) * $rabItem->weighting : 0;
-                                $progPeriodeIni = ($rabItem && $rabItem->volume > 0) ? ($volPeriodeIni / $rabItem->volume) * $rabItem->weighting : 0;
-                                $progTotal = $progLalu + $progPeriodeIni;
-                            @endphp
-                            <tr class="border-t">
-                                <td class="px-4 py-2 border">
-                                    @if ($rabItem)
-                                        <span class="font-semibold">{{ $rabItem->item_number }}</span> {{ $rabItem->item_name }}
-                                    @else
-                                        <span class="font-semibold text-orange-600">(Non-BOQ)</span> {{ $activity->custom_work_name }}
-                                    @endif
-                                </td>
-                                <td class="text-center px-4 py-2 border">{{ $rabItem->unit ?? '-' }}</td>
-                                <td class="text-center px-4 py-2 border">{{ $rabItem ? number_format($rabItem->volume, 2) : '-' }}</td>
-                                <td class="text-center px-4 py-2 border">{{ $rabItem ? number_format($rabItem->weighting, 2) . '%' : '-' }}</td>
-                                <td class="text-center px-2 py-1 border progress-details">{{ number_format($volLalu, 2) }}</td>
-                                <td class="text-center px-2 py-1 border progress-details">{{ number_format($volPeriodeIni, 2) }}</td>
-                                <td class="text-center px-2 py-1 border progress-details">{{ number_format($volTotal, 2) }}</td>
-                                <td class="text-center px-2 py-1 border progress-details">{{ number_format($progLalu, 2) }}%</td>
-                                <td class="text-center px-2 py-1 border progress-details">{{ number_format($progPeriodeIni, 2) }}%</td>
-                                <td class="text-center px-2 py-1 border progress-details">{{ number_format($progTotal, 2) }}%</td>
-                            </tr>
+                        {{-- GANTI: Logika looping diubah untuk memanggil partial rekursif --}}
+                        @forelse ($activityTree as $item)
+                            @include('daily_reports.partials._activity-row', ['item' => $item, 'level' => 0])
                         @empty
                             <tr><td colspan="10" class="text-center p-4 text-gray-500">Tidak ada aktivitas pekerjaan yang dilaporkan.</td></tr>
                         @endforelse
@@ -64,6 +38,7 @@
             </div>
         </div>
 
+        {{-- (Bagian lain dari file ini tetap sama) --}}
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {{-- Personil Kontraktor --}}
             <div class="bg-white rounded shadow p-4">
