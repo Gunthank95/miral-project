@@ -3,189 +3,185 @@
 @section('title', 'Laporan Periodik')
 
 @section('content')
-<div class="p-4 sm:p-6">
-    <header class="bg-white shadow p-4 rounded-lg mb-6">
-        <div class="flex justify-between items-center">
-            <div>
-                <h1 class="text-2xl font-bold text-gray-800">Laporan Periodik (Mingguan/Bulanan)</h1>
-                <p class="text-sm text-gray-500">
-                    Proyek: {{ $package->project->name }} - Paket: {{ $package->name }}
-                </p>
+<div class="container mx-auto" x-data="periodicReport()">
+    <div class="bg-white rounded shadow p-6">
+        <h1 class="text-2xl font-semibold mb-4 border-b pb-2">Laporan Progres Periodik</h1>
+        
+        {{-- FORM FILTER UTAMA --}}
+        <form method="GET" action="{{ route('periodic_reports.index', $package) }}" class="mb-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
+                <div>
+                    <label for="start_date" class="block text-sm font-medium text-gray-700">Tanggal Mulai:</label>
+                    <input type="date" id="start_date" name="start_date" value="{{ $startDate }}" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
+                </div>
+                <div>
+                    <label for="end_date" class="block text-sm font-medium text-gray-700">Tanggal Selesai:</label>
+                    <input type="date" id="end_date" name="end_date" value="{{ $endDate }}" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
+                </div>
+                <div class="col-span-1 md:col-span-2 lg:col-span-1">
+                    <label for="filter" class="block text-sm font-medium text-gray-700">Filter Tampilan:</label>
+                    <select name="filter" id="filter" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
+                        <option value="all" @if($filter == 'all') selected @endif>Tampilkan Semua Item</option>
+                        <option value="this_period" @if($filter == 'this_period') selected @endif>Item Dikerjakan Periode Ini</option>
+                        <option value="until_now" @if($filter == 'until_now') selected @endif>Item Dikerjakan s/d Saat Ini</option>
+                    </select>
+                </div>
+                <div class="flex space-x-2">
+                    <button type="submit" class="w-full inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                        Terapkan
+                    </button>
+                    <a href="{{ request()->fullUrlWithQuery(['print' => 'true']) }}" target="_blank" class="w-full text-center inline-flex justify-center py-2 px-4 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                        Cetak
+                    </a>
+                </div>
             </div>
-        </div>
-    </header>
+        </form>
 
-    <main>
-        {{-- Form Filter Tanggal --}}
-        <div class="bg-white rounded shadow p-4 mb-6">
-            <form method="GET" action="{{ route('periodic_reports.index', $package->id) }}" class="flex flex-wrap items-end gap-4">
-                <div>
-                    <label for="start_date" class="block text-sm font-medium text-gray-700">Tanggal Mulai</label>
-                    <input type="date" name="start_date" id="start_date" value="{{ $startDate }}" required class="mt-1 border rounded px-3 py-1 text-sm">
-                </div>
-                <div>
-                    <label for="end_date" class="block text-sm font-medium text-gray-700">Tanggal Selesai</label>
-                    <input type="date" name="end_date" id="end_date" value="{{ $endDate }}" required class="mt-1 border rounded px-3 py-1 text-sm">
-                </div>
-                <div>
-                    <div class="flex items-center space-x-2">
-						<button type="submit" class="bg-blue-600 text-white px-4 py-1 rounded text-sm hover:bg-blue-700">
-							Tampilkan
-						</button>
-						<button type="submit" formaction="{{ route('periodic_reports.print', $package->id) }}" formtarget="_blank" class="bg-gray-600 text-white px-4 py-1 rounded text-sm hover:bg-gray-700">
-							Cetak
-						</button>
-					</div>
-                </div>
-            </form>
+        {{-- TABEL PEKERJAAN --}}
+        <div class="overflow-x-auto">
+            <table class="min-w-full text-xs" id="rab-table">
+                <thead class="bg-gray-100">
+                    <tr>
+                        <th rowspan="2" class="text-left px-4 py-2 border">Uraian Pekerjaan</th>
+                        <th rowspan="2" class="px-2 py-1 border">Sat</th>
+                        <th rowspan="2" class="px-2 py-1 border">Volume Kontrak</th>
+                        <th rowspan="2" class="px-2 py-1 border">Bobot Kontrak (%)</th>
+                        <th colspan="3" class="px-2 py-1 border">Volume</th>
+                        <th colspan="3" class="px-2 py-1 border">Bobot (%)</th>
+                    </tr>
+                    <tr>
+                        <th class="px-2 py-1 border font-normal">s/d Periode Lalu</th>
+                        <th class="px-2 py-1 border font-normal">Periode Ini</th>
+                        <th class="px-2 py-1 border font-normal">s/d Periode Ini</th>
+                        <th class="px-2 py-1 border font-normal">s/d Periode Lalu</th>
+                        <th class="px-2 py-1 border font-normal">Periode Ini</th>
+                        <th class="px-2 py-1 border font-normal">s/d Periode Ini</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @forelse ($rabTree as $item)
+                        @include('periodic_reports.partials._item-row', ['item' => $item, 'level' => 0])
+                    @empty
+                        <tr><td colspan="10" class="text-center p-4 text-gray-500">Tidak ada data pekerjaan yang sesuai dengan filter.</td></tr>
+                    @endforelse
+                </tbody>
+                {{-- TAMBAHKAN: Baris Total di Footer Tabel --}}
+                @if($rabTree->isNotEmpty())
+                <tfoot class="bg-gray-200 font-bold">
+                    <tr>
+                        <td colspan="7" class="text-right px-4 py-2 border">TOTAL PROGRES KESELURUHAN</td>
+                        <td class="text-center px-2 py-1 border">{{ number_format($rabTree->sum('bobot_lalu'), 4) }}%</td>
+                        <td class="text-center px-2 py-1 border">{{ number_format($rabTree->sum('bobot_periode_ini'), 4) }}%</td>
+                        <td class="text-center px-2 py-1 border">{{ number_format($rabTree->sum('bobot_lalu') + $rabTree->sum('bobot_periode_ini'), 4) }}%</td>
+                    </tr>
+                </tfoot>
+                @endif
+            </table>
         </div>
 
-        @if ($startDate && $endDate)
+        <hr class="my-6">
+        
+        {{-- TAMBAHKAN: Kartu-kartu Sumber Daya --}}
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mt-6">
+            {{-- Personil --}}
             <div class="bg-white rounded shadow p-4">
-                <div class="flex justify-between items-center mb-2 border-b pb-2">
-                    <h2 class="text-xl font-semibold">Rangkuman Progres Periode {{ \Carbon\Carbon::parse($startDate)->isoFormat('D MMM Y') }} - {{ \Carbon\Carbon::parse($endDate)->isoFormat('D MMM Y') }}</h2>
-                    <button id="toggle-progress-details" class="text-xs text-blue-600 hover:underline">Sembunyikan Detail</button>
-                </div>
-                <div class="overflow-x-auto">
-                    <table class="min-w-full text-sm">
-                        <thead class="bg-gray-100">
-                            <tr>
-                                <th rowspan="2" class="text-left px-4 py-2 border">Uraian Pekerjaan</th>
-                                <th rowspan="2" class="text-center px-4 py-2 border">Satuan</th>
-                                <th rowspan="2" class="text-center px-4 py-2 border">Volume Kontrak</th>
-                                <th rowspan="2" class="text-center px-4 py-2 border">Bobot Kontrak (%)</th>
-                                <th colspan="3" class="text-center px-4 py-2 border progress-details">Volume</th>
-                                <th colspan="3" class="text-center px-4 py-2 border progress-details">Bobot (%)</th>
-                            </tr>
-                            <tr class="progress-details">
-                                <th class="text-center px-2 py-1 border font-normal">Lalu</th>
-                                <th class="text-center px-2 py-1 border font-normal">Periode Ini</th>
-                                <th class="text-center px-2 py-1 border font-normal">S.d Saat Ini</th>
-                                <th class="text-center px-2 py-1 border font-normal">Lalu</th>
-                                <th class="text-center px-2 py-1 border font-normal">Periode Ini</th>
-                                <th class="text-center px-2 py-1 border font-normal">S.d Saat Ini</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-						@forelse ($groupedActivities as $rab_item_id => $activities)
-							@php
-								$firstActivity = $activities->first();
-								$rabItem = $firstActivity->rabItem; // Bisa jadi null
-								$volLalu = $activities->previous_progress_volume;
-								$volPeriodeIni = $activities->sum('progress_volume');
-								$volTotal = $volLalu + $volPeriodeIni;
+                <h3 class="font-semibold mb-2 border-b pb-2">Sumber Daya Manusia</h3>
+                <ul class="text-sm space-y-1">
+                    @php 
+                        $groupedPersonnel = $allPersonnel->groupBy('role')->map(function($group) {
+                            return $group->sum('count');
+                        });
+                    @endphp
+                    @forelse ($groupedPersonnel as $role => $count)
+                        <li class="flex justify-between"><span>{{ $role }}</span> <span>{{ $count }}</span></li>
+                    @empty
+                        <li class="text-gray-500">Tidak ada data.</li>
+                    @endforelse
+                </ul>
+            </div>
+            {{-- Material --}}
+            <div class="bg-white rounded shadow p-4">
+                 <h3 class="font-semibold mb-2 border-b pb-2">Material Digunakan</h3>
+                <ul class="text-sm space-y-1">
+                    @php 
+                        $groupedMaterials = $allMaterials->groupBy('material.name')->map(function($group) {
+                            return $group->sum('quantity') . ' ' . $group->first()->unit;
+                        });
+                    @endphp
+                    @forelse ($groupedMaterials as $name => $quantity)
+                        <li>{{ $name }} ({{ $quantity }})</li>
+                    @empty
+                        <li class="text-gray-500">Tidak ada data.</li>
+                    @endforelse
+                </ul>
+            </div>
+            {{-- Peralatan --}}
+             <div class="bg-white rounded shadow p-4">
+                 <h3 class="font-semibold mb-2 border-b pb-2">Peralatan Digunakan</h3>
+                <ul class="text-sm space-y-1">
+                    @php 
+                        $groupedEquipment = $allEquipment->groupBy('name')->map(function($group) {
+                            return $group->sum('quantity');
+                        });
+                    @endphp
+                    @forelse ($groupedEquipment as $name => $quantity)
+                        <li>{{ $name }} ({{ $quantity }} unit)</li>
+                    @empty
+                         <li class="text-gray-500">Tidak ada data.</li>
+                    @endforelse
+                </ul>
+            </div>
+            {{-- Cuaca --}}
+            <div class="bg-white rounded shadow p-4">
+                <h3 class="font-semibold mb-2 border-b pb-2">Rekap Cuaca</h3>
+                <ul class="text-sm space-y-1">
+                    @php 
+                        $groupedWeather = $allWeather->groupBy('condition')->map(function($group) {
+                            return $group->count();
+                        });
+                    @endphp
+                    @forelse ($groupedWeather as $condition => $count)
+                        <li class="flex justify-between"><span>{{ $condition }}</span> <span>{{ $count }} kali</span></li>
+                    @empty
+                        <li class="text-gray-500">Tidak ada data.</li>
+                    @endforelse
+                </ul>
+            </div>
+        </div>
 
-								$progLalu = ($rabItem && $rabItem->volume > 0) ? ($volLalu / $rabItem->volume) * $rabItem->weighting : 0;
-								$progPeriodeIni = ($rabItem && $rabItem->volume > 0) ? ($volPeriodeIni / $rabItem->volume) * $rabItem->weighting : 0;
-								$progTotal = $progLalu + $progPeriodeIni;
-							@endphp
-							<tr class="border-t">
-								<td class="px-4 py-2 border">
-									{{-- Pengecekan baru di sini --}}
-									@if ($rabItem)
-										<span class="font-semibold">{{ $rabItem->item_number }}</span> {{ $rabItem->item_name }}
-									@else
-										<span class="font-semibold text-orange-600">(Non-BOQ)</span> {{ $firstActivity->custom_work_name }}
-									@endif
-								</td>
-								<td class="text-center px-4 py-2 border">{{ $rabItem->unit ?? '-' }}</td>
-								<td class="text-center px-4 py-2 border">{{ $rabItem ? number_format($rabItem->volume, 2) : '-' }}</td>
-								<td class="text-center px-4 py-2 border">{{ $rabItem ? number_format($rabItem->weighting, 2) . '%' : '-' }}</td>
-								<td class="text-center px-2 py-1 border progress-details">{{ number_format($volLalu, 2) }}</td>
-								<td class="text-center px-2 py-1 border progress-details">{{ number_format($volPeriodeIni, 2) }}</td>
-								<td class="text-center px-2 py-1 border progress-details">{{ number_format($volTotal, 2) }}</td>
-								<td class="text-center px-2 py-1 border progress-details">{{ number_format($progLalu, 2) }}%</td>
-								<td class="text-center px-2 py-1 border progress-details">{{ number_format($progPeriodeIni, 2) }}%</td>
-								<td class="text-center px-2 py-1 border progress-details">{{ number_format($progTotal, 2) }}%</td>
-							</tr>
-						@empty
-							<tr><td colspan="10" class="text-center p-4 text-gray-500">Tidak ada aktivitas pekerjaan yang dilaporkan pada periode ini.</td></tr>
-						@endforelse
-					</tbody>
-                    </table>
-                </div>
-				
-				{{-- KARTU-KARTU RINGKASAN YANG BARU --}}
-				<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-					{{-- Personil Kontraktor --}}
-					<div class="bg-white rounded shadow p-4">
-						<h3 class="font-semibold mb-2 border-b pb-2">Tim Kontraktor (Rata-rata)</h3>
-						@php
-							$allContractorPersonnel = $reports->flatMap->personnel->where('company_type', 'Kontraktor')->groupBy('role');
-						@endphp
-						<ul class="text-sm space-y-1">
-							@forelse ($allContractorPersonnel as $role => $items)
-								<li class="flex justify-between"><span>{{ $role }}</span> <span>{{ round($items->sum('count') / $reports->count()) }}</span></li>
-							@empty
-								<li class="text-gray-500">Tidak ada data.</li>
-							@endforelse
-						</ul>
-					</div>
-					{{-- Personil MK --}}
-					<div class="bg-white rounded shadow p-4">
-						<h3 class="font-semibold mb-2 border-b pb-2">Tim MK/Pengawas (Rata-rata)</h3>
-						@php
-							$allMkPersonnel = $reports->flatMap->personnel->where('company_type', 'MK')->groupBy('role');
-						@endphp
-						<ul class="text-sm space-y-1">
-							 @forelse ($allMkPersonnel as $role => $items)
-								<li class="flex justify-between"><span>{{ $role }}</span> <span>{{ round($items->sum('count') / $reports->count()) }}</span></li>
-							@empty
-								<li class="text-gray-500">Tidak ada data.</li>
-							@endforelse
-						</ul>
-					</div>
-					{{-- Material --}}
-					<div class="bg-white rounded shadow p-4">
-						<h3 class="font-semibold mb-2 border-b pb-2">Material Digunakan (Total)</h3>
-						<ul class="text-sm space-y-1">
-							@php $allMaterials = $reports->flatMap->activities->flatMap->materials->groupBy('material.name'); @endphp
-							@forelse ($allMaterials as $name => $items)
-								<li>{{ $name }} ({{ $items->sum('quantity') }} {{ $items->first()->unit }})</li>
-							@empty
-								<li class="text-gray-500">Tidak ada data.</li>
-							@endforelse
-						</ul>
-					</div>
-					{{-- Peralatan --}}
-					<div class="bg-white rounded shadow p-4">
-						<h3 class="font-semibold mb-2 border-b pb-2">Peralatan Digunakan</h3>
-						<ul class="text-sm space-y-1">
-							 @php $allEquipment = $reports->flatMap->activities->flatMap->equipment->groupBy('name'); @endphp
-							@forelse ($allEquipment as $name => $items)
-								<li>{{ $name }} ({{ $items->sum('quantity') }} unit)</li>
-							@empty
-								<li class="text-gray-500">Tidak ada data.</li>
-							@endforelse
-						</ul>
-					</div>
-				</div>
-            </div>
-        @else
-            <div class="bg-white rounded shadow p-10 text-center">
-                <h2 class="text-xl font-semibold text-gray-700">Silakan Pilih Rentang Tanggal</h2>
-                <p class="text-gray-500 mt-2">Pilih tanggal mulai dan selesai, lalu klik "Tampilkan Laporan" untuk melihat rangkuman.</p>
-            </div>
-        @endif
-    </main>
+    </div>
 </div>
 @endsection
 
 @push('scripts')
+{{-- TAMBAHKAN: Script untuk Expand/Collapse --}}
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        const toggleBtn = document.getElementById('toggle-progress-details');
-        const detailCells = document.querySelectorAll('.progress-details');
-
-        if (toggleBtn) {
-            toggleBtn.addEventListener('click', function() {
-                const isHidden = detailCells[0].classList.contains('hidden');
-                detailCells.forEach(cell => {
-                    cell.classList.toggle('hidden');
+    function periodicReport() {
+        return {
+            toggle(itemId) {
+                const rows = document.querySelectorAll(`#rab-table tbody tr[data-parent-id='${itemId}']`);
+                let allChildrenHidden = true;
+                rows.forEach(row => {
+                    if (!row.classList.contains('hidden')) {
+                        allChildrenHidden = false;
+                    }
+                    row.classList.toggle('hidden');
+                    const childId = row.getAttribute('data-id');
+                    const icon = document.querySelector(`.toggle-icon[data-id='${childId}']`);
+                    if (icon && !row.classList.contains('hidden')) {
+                         // Saat parent dibuka, pastikan anak-anaknya tertutup
+                        const grandchildren = document.querySelectorAll(`#rab-table tbody tr[data-parent-id='${childId}']`);
+                        grandchildren.forEach(gc => gc.classList.add('hidden'));
+                        icon.textContent = '+';
+                    }
                 });
-                this.textContent = isHidden ? 'Sembunyikan Detail' : 'Tampilkan Detail';
-            });
+                
+                const icon = document.querySelector(`.toggle-icon[data-id='${itemId}']`);
+                if (icon) {
+                    icon.textContent = allChildrenHidden ? '-' : '+';
+                }
+            }
         }
-    });
+    }
 </script>
 @endpush
