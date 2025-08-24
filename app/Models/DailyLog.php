@@ -17,11 +17,11 @@ class DailyLog extends Model
         'daily_report_id',
         'package_id',
         'rab_item_id',
-        'custom_work_name', // Pastikan ini ada
+        'custom_work_name',
         'user_id',
         'log_date',
         'progress_volume',
-        'manpower_count',
+        'manpower_count', // Kolom ini sebenarnya sudah tidak terpakai
         'notes',
     ];
 
@@ -40,32 +40,26 @@ class DailyLog extends Model
         return $this->belongsTo(User::class);
     }
 
-    /**
-     * FUNGSI PENTING: Mendapatkan data material untuk aktivitas ini.
-     */
     public function materials()
     {
         return $this->hasMany(DailyLogMaterial::class);
     }
 
-    /**
-     * FUNGSI PENTING: Mendapatkan data peralatan untuk aktivitas ini.
-     */
     public function equipment()
     {
         return $this->hasMany(DailyLogEquipment::class);
     }
 
-    /**
-     * FUNGSI PENTING: Mendapatkan data foto untuk aktivitas ini.
-     */
     public function photos()
     {
         return $this->hasMany(DailyLogPhoto::class);
     }
-	
-	public function manpower()
-	{
-		return $this->hasMany(DailyLogManpower::class);
-	}
+
+    /**
+     * TAMBAHKAN: Mendapatkan data tenaga kerja untuk aktivitas ini.
+     */
+    public function manpower()
+    {
+        return $this->hasMany(DailyLogManpower::class);
+    }
 }

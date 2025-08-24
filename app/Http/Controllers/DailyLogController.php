@@ -2,72 +2,128 @@
 
 namespace App\Http\Controllers;
 
-// TAMBAHKAN: Panggil Form Request yang baru
-use App\Http\Requests\StoreDailyLogRequest;
-use App\Http\Requests\UpdateDailyLogRequest;
 use App\Models\DailyLog;
 use App\Models\DailyReport;
-use Illuminate\Support\Facades\DB;
+use App\Models\Material;
+use App\Models\DailyLogMaterial;
+use App\Models\DailyLogEquipment;
+use App\Models\DailyLogPhoto;
+use App\Models\DailyLogManpower;
+use App\Models\RabItem;
+use Illuminate\Http\Request; // GANTI: Pastikan namespace ini benar
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
 
 class DailyLogController extends Controller
 {
     public function create(DailyReport $daily_report)
     {
-        // Memuat data yang diperlukan oleh form 'create'
-        $package = $daily_report->package()->first();
-        $rabItemsTree = $this->buildTree($package->rabItems);
-        $mainRabItems = $rabItemsTree->whereNull('parent_id');
-        $materials = \App\Models\Material::orderBy('name')->get();
+        $package = $daily_report->package;
+        $mainRabItems = $package->rabItems()->whereNull('parent_id')->get()->sortBy('id');
+        $materials = Material::orderBy('name')->get();
 
         return view('daily_logs.create', [
-            'report' => $daily_report,
             'package' => $package,
+            'report' => $daily_report,
             'mainRabItems' => $mainRabItems,
             'materials' => $materials,
         ]);
     }
-	
-	// GANTI: Gunakan StoreDailyLogRequest di sini
-    public function store(StoreDailyLogRequest $request, DailyReport $daily_report)
-    {
-        // GANTI: Ambil data yang sudah tervalidasi
-        $validated = $request->validated();
-        
-        DB::transaction(function () use ($daily_report, $validated, $request) {
-            $logData = [
-                'user_id' => auth()->id(),
-                'package_id' => $daily_report->package_id,
-                'rab_item_id' => $validated['rab_item_id'] ?? null,
-                'custom_work_name' => $validated['custom_work_name'] ?? null,
-                'progress_volume' => $validated['progress_volume'],
-                'description' => $validated['description'] ?? null,
-                'log_date' => $daily_report->report_date,
-            ];
 
-            $dailyLog = $daily_report->activities()->create($logData);
+    public function store(Request $request, Package $package)
+	{
+		try {
+			$validatedData = $request->validate([
+				'daily_report_id' => 'required|exists:daily_reports,id',
+				'rab_item_id' => 'required_without:custom_work_name|nullable|exists:rab_items,id',
+				'custom_work_name' => 'required_without:rab_item_id|nullable|string|max:255',
+				'progress_volume' => 'nullable|numeric',
+				'manpower' => 'nullable|array',
+				'materials' => 'nullable|array',
+				'equipment' => 'nullable|array',
+				'photos' => 'nullable|array',
+			]);
 
-            if ($request->hasFile('photos')) {
-                foreach ($request->file('photos') as $photo) {
-                    $path = $photo->store('daily_log_photos', 'public');
-                    $dailyLog->photos()->create(['photo_path' => $path]);
-                }
-            }
+			$dailyReport = DailyReport::find($validatedData['daily_report_id']);
 
-            if (isset($validated['materials'])) {
-                foreach ($validated['materials'] as $material) {
-                    $dailyLog->materials()->create($material);
-                }
-            }
+			$dailyLog = DailyLog::create([
+				'daily_report_id' => $validatedData['daily_report_id'],
+				'package_id' => $package->id,
+				'rab_item_id' => $validatedData['rab_item_id'] ?? null,
+				'custom_work_name' => $validatedData['custom_work_name'] ?? null,
+				'user_id' => Auth::id(),
+				'log_date' => $dailyReport->report_date,
+				'progress_volume' => $validatedData['progress_volume'] ?? 0,
+			]);
 
-            if (isset($validated['equipment'])) {
-                foreach ($validated['equipment'] as $equip) {
-                    $dailyLog->equipment()->create($equip);
-                }
-            }
-        });
+			// GANTI: Logika penyimpanan yang lengkap
+			if ($request->filled('manpower')) {
+				foreach ($request->manpower as $manpowerData) {
+					if (!empty($manpowerData['role']) && !empty($manpowerData['quantity'])) {
+						$dailyLog->manpower()->create([
+							'role' => $manpowerData['role'],
+							'quantity' => $manpowerData['quantity'],
+						]);
+					}
+				}
+			}
 
-        return back()->with('success', 'Aktivitas berhasil ditambahkan.');
-    }
+			if ($request->filled('materials')) {
+				foreach ($request->materials as $materialData) {
+					if (!empty($materialData['id'])) {
+						DailyLogMaterial::create([
+							'daily_log_id' => $dailyLog->id,
+							'material_id' => $materialData['id'],
+							'quantity' => $materialData['quantity'] ?? 0,
+							'unit' => $materialData['unit'],
+						]);
+					}
+				}
+			}
+
+			if ($request->filled('equipment')) {
+				foreach ($request->equipment as $equipmentData) {
+					if (!empty($equipmentData['name'])) {
+						$dailyLog->equipment()->create([
+							'name' => $equipmentData['name'],
+							'quantity' => $equipmentData['quantity'] ?? 1,
+							'specification' => $equipmentData['specification'],
+						]);
+					}
+				}
+			}
+
+			if ($request->hasFile('photos')) {
+				foreach ($request->file('photos') as $photo) {
+					if ($photo) {
+						$path = $photo->store('photos', 'public');
+						DailyLogPhoto::create([
+							'daily_log_id' => $dailyLog->id,
+							'file_path' => $path,
+						]);
+					}
+				}
+			}
+
+			$request->session()->flash('success', 'Aktivitas pekerjaan berhasil ditambahkan!');
+
+			if ($request->wantsJson()) {
+				return response()->json(['success' => true, 'redirect_url' => route('daily_reports.edit', ['package' => $package->id, 'daily_report' => $dailyReport->id])]);
+			}
+			return redirect()->route('daily_reports.edit', ['package' => $package->id, 'daily_report' => $dailyReport->id]);
+
+		} catch (ValidationException $e) {
+			if ($request->wantsJson()) {
+				return response()->json([
+					'success' => false,
+					'message' => 'Data tidak valid. Silakan periksa kembali isian Anda.',
+					'errors' => $e->errors()
+				], 422);
+			}
+			return back()->withErrors($e->errors())->withInput();
+		}
+	}
 
     // GANTI: Gunakan UpdateDailyLogRequest di sini
     public function update(UpdateDailyLogRequest $request, DailyLog $daily_log)
