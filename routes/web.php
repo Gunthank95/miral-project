@@ -107,6 +107,7 @@ Route::middleware('auth')->group(function () {
     Route::delete('/daily-reports/personnel/{personnel_log}', [DailyReportController::class, 'destroyPersonnel'])->name('daily_reports.personnel.destroy');
     
     // Aktivitas Pekerjaan (Daily Log)
+    Route::get('/daily-reports/{daily_report}/activity/create', [DailyLogController::class, 'create'])->name('daily_log.create');
     Route::post('/package/{package}/daily-log', [DailyLogController::class, 'store'])->name('daily_log.store');
     Route::get('/activity/{daily_log}/edit', [DailyLogController::class, 'edit'])->name('daily_log.edit');
     Route::put('/activity/{daily_log}', [DailyLogController::class, 'update'])->name('daily_log.update');

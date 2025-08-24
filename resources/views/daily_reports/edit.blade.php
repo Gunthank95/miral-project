@@ -3,7 +3,7 @@
 @section('title', 'Pembuatan Laporan Harian')
 
 @section('content')
-<div class="p-4 sm:p-6" x-data="{ openModal: false }">
+<div class="p-4 sm:p-6">
     <header class="bg-white shadow p-4 rounded-lg mb-6">
         <h1 class="text-2xl font-bold text-gray-800">Pembuatan Laporan Harian</h1>
         <p class="text-sm text-gray-500">
@@ -135,12 +135,12 @@
 
         {{-- SEKSI 4: AKTIVITAS PEKERJAAN --}}
         <div class="bg-white rounded shadow p-4">
-            <div class="flex justify-between items-center mb-4">
-				<h2 class="text-xl font-semibold">Aktivitas Pekerjaan</h2>
-				<button @click="openModal = true" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
-					+ Tambah Aktivitas
-				</button>
-			</div>
+            <div class="flex justify-between items-center mb-4 border-b pb-2">
+                <h2 class="text-xl font-semibold">4. Aktivitas Pekerjaan & Material</h2>
+                <a href="{{ route('daily_log.create', $report->id) }}" class="bg-blue-500 text-white px-3 py-1 rounded text-sm hover:bg-blue-600">
+                    + Tambah Aktivitas
+                </a>
+            </div>
 
             <div class="overflow-x-auto">
                 <table class="min-w-full text-sm">

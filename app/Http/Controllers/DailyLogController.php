@@ -11,7 +11,23 @@ use Illuminate\Support\Facades\DB;
 
 class DailyLogController extends Controller
 {
-    // GANTI: Gunakan StoreDailyLogRequest di sini
+    public function create(DailyReport $daily_report)
+    {
+        // Memuat data yang diperlukan oleh form 'create'
+        $package = $daily_report->package()->first();
+        $rabItemsTree = $this->buildTree($package->rabItems);
+        $mainRabItems = $rabItemsTree->whereNull('parent_id');
+        $materials = \App\Models\Material::orderBy('name')->get();
+
+        return view('daily_logs.create', [
+            'report' => $daily_report,
+            'package' => $package,
+            'mainRabItems' => $mainRabItems,
+            'materials' => $materials,
+        ]);
+    }
+	
+	// GANTI: Gunakan StoreDailyLogRequest di sini
     public function store(StoreDailyLogRequest $request, DailyReport $daily_report)
     {
         // GANTI: Ambil data yang sudah tervalidasi
