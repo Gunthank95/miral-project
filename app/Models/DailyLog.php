@@ -9,10 +9,6 @@ class DailyLog extends Model
 {
     use HasFactory;
 
-    protected $casts = [
-        'log_date' => 'date',
-    ];
-
     protected $fillable = [
         'daily_report_id',
         'package_id',
@@ -23,6 +19,10 @@ class DailyLog extends Model
         'progress_volume',
         'manpower_count', // Kolom ini sebenarnya sudah tidak terpakai
         'notes',
+    ];
+	
+	protected $casts = [
+        'log_date' => 'datetime',
     ];
 
     public function report()

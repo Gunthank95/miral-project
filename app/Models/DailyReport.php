@@ -8,6 +8,16 @@ use Illuminate\Database\Eloquent\Model;
 class DailyReport extends Model
 {
     use HasFactory;
+	
+	/**
+     * TAMBAHKAN BLOK INI
+     * The attributes that should be cast.
+     *
+     * @var array
+     */
+    protected $casts = [
+        'report_date' => 'date',
+    ];
 
     /**
      * The attributes that are mass assignable.

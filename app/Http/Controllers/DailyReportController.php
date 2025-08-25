@@ -4,16 +4,16 @@ namespace App\Http\Controllers;
 
 use App\Models\Package;
 use App\Models\DailyReport;
+use App\Models\DailyLog;
 use App\Models\DailyReportWeather;
 use App\Models\DailyReportPersonnel;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Carbon\Carbon;
-use App\Services\ReportBuilderService; // TAMBAHKAN
+use App\Services\ReportBuilderService;
 
 class DailyReportController extends Controller
 {
-    // TAMBAHKAN: Properti dan constructor untuk inject service
     protected $reportBuilder;
 
     public function __construct(ReportBuilderService $reportBuilder)
@@ -21,26 +21,24 @@ class DailyReportController extends Controller
         $this->reportBuilder = $reportBuilder;
     }
 
-    /**
-     * GANTI: Logika index() menjadi lebih ramping
-     */
     public function index(Request $request, Package $package)
     {
         $selectedDate = $request->input('date') ? Carbon::parse($request->input('date')) : Carbon::today();
 
         $report = $package->dailyReports()
                           ->whereDate('report_date', $selectedDate)
-                          ->with([
-                              'weather', 
-                              'personnel', 
-                              'activities.rabItem', 
-                              'activities.materials.material',
-                              'activities.equipment',
-                              'activities.photos'
-                          ])
+                          ->with(['weather', 'personnel'])
                           ->first();
+
+        // Filter aktivitas secara manual
+        if ($report) {
+            $filteredActivities = DailyLog::where('daily_report_id', $report->id)
+                ->whereDate('log_date', $report->report_date)
+                ->with(['rabItem', 'materials.material', 'equipment', 'photos'])
+                ->get();
+            $report->setRelation('activities', $filteredActivities);
+        }
         
-        // GANTI: Panggil service untuk membangun pohon aktivitas
         $activityTree = $report ? $this->reportBuilder->generateDailyReport($report, $package->id) : collect();
 
         $viewData = [
@@ -50,50 +48,53 @@ class DailyReportController extends Controller
             'activityTree' => $activityTree,
         ];
 
+        // Respons untuk AJAX dari filter tanggal
         if ($request->ajax()) {
+            $htmlContent = $report 
+                ? view('daily_reports.partials._summary-content', $viewData)->render()
+                : view('daily_reports.partials._report-not-found', $viewData)->render();
+
             return response()->json([
-                'html' => view('daily_reports.partials._summary-content', $viewData)->render(),
-                'date_header' => \Carbon\Carbon::parse($selectedDate)->isoFormat('dddd, D MMMM YYYY'),
+                'html' => $htmlContent,
+                'date_header' => $selectedDate->isoFormat('dddd, D MMMM YYYY'),
+                'report_exists' => (bool)$report,
             ]);
         }
 
         return view('daily_reports.index', $viewData);
     }
-    
+
     public function create(Request $request, Package $package)
     {
         $targetDate = $request->input('date') ? Carbon::parse($request->input('date')) : Carbon::today();
 
-        $report = $package->dailyReports()
-                               ->firstOrCreate(
-                                   [
-                                       'report_date' => $targetDate,
-                                       'package_id' => $package->id
-                                   ],
-                                   [
-                                       'user_id' => Auth::id()
-                                   ]
-                               );
+        $report = $package->dailyReports()->firstOrCreate(
+            ['report_date' => $targetDate, 'package_id' => $package->id],
+            ['user_id' => Auth::id()]
+        );
         
         return redirect()->route('daily_reports.edit', ['package' => $package->id, 'daily_report' => $report->id]);
     }
 
+    // PERBAIKAN PADA FUNGSI EDIT
     public function edit(Package $package, DailyReport $daily_report)
     {
+        // Pastikan laporan yang diakses adalah milik paket yang benar
+        if ($daily_report->package_id !== $package->id) {
+            abort(404);
+        }
+
+        // Otomatis salin data personil dari laporan terakhir jika ini laporan baru
         if ($daily_report->personnel->isEmpty() && $daily_report->wasRecentlyCreated) {
-            $lastReportWithPersonnel = $package->dailyReports()
+            $lastReport = $package->dailyReports()
                 ->where('id', '!=', $daily_report->id)
                 ->whereHas('personnel')
                 ->latest('report_date')
                 ->first();
 
-            if ($lastReportWithPersonnel) {
-                foreach ($lastReportWithPersonnel->personnel as $personnel) {
-                    $daily_report->personnel()->create([
-                        'role' => $personnel->role,
-                        'company_type' => $personnel->company_type,
-                        'count' => $personnel->count,
-                    ]);
+            if ($lastReport) {
+                foreach ($lastReport->personnel as $personnel) {
+                    $daily_report->personnel()->create($personnel->only(['role', 'company_type', 'count']));
                 }
             }
         }
@@ -105,7 +106,19 @@ class DailyReportController extends Controller
             'report' => $daily_report,
         ]);
     }
- 
+
+    // ... sisa fungsi lainnya (storeWeather, destroyWeather, dst.) tetap sama ...
+    public function update(Request $request, DailyReport $daily_report)
+    {
+        $validated = $request->validate([
+            'notes' => 'nullable|string',
+        ]);
+
+        $daily_report->update($validated);
+
+        return back()->with('success', 'Catatan berhasil diperbarui.');
+    }
+
     public function storeWeather(Request $request, DailyReport $daily_report)
     {
         $validated = $request->validate([
