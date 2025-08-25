@@ -12,11 +12,24 @@
                     Proyek: {{ $package->project->name }} - Paket: {{ $package->name }}
                 </p>
             </div>
-            {{-- Ini adalah baris filter tanggal --}}
-            <div class="flex items-center space-x-2">
-                <button id="prev-day-btn" class="p-2 rounded-full hover:bg-gray-200" title="Hari Sebelumnya">◄</button>
-                <input type="date" name="date" id="date-input" value="{{ $selectedDate }}" class="border rounded px-3 py-1 text-sm focus:ring-blue-500 focus:border-blue-500">
-                <button id="next-day-btn" class="p-2 rounded-full hover:bg-gray-200" title="Hari Berikutnya">►</button>
+            
+            <div class="flex items-center space-x-4">
+                {{-- Filter Tampilan --}}
+                <div>
+                    <label for="filter" class="text-sm font-medium text-gray-700">Filter Tampilan:</label>
+                    <select name="filter" id="filter-select" class="border rounded px-3 py-1 text-sm focus:ring-blue-500 focus:border-blue-500">
+                        <option value="this_period" @if($currentFilter == 'this_period') selected @endif>Item dikerjakan hari ini</option>
+                        <option value="until_now" @if($currentFilter == 'until_now') selected @endif>Item dikerjakan s.d hari ini</option>
+                        <option value="all_items" @if($currentFilter == 'all_items') selected @endif>Tampilkan semua item</option>
+                    </select>
+                </div>
+                
+                {{-- Filter Tanggal --}}
+                <div class="flex items-center space-x-2">
+                    <button id="prev-day-btn" class="p-2 rounded-full hover:bg-gray-200" title="Hari Sebelumnya">◄</button>
+                    <input type="date" name="date" id="date-input" value="{{ $selectedDate }}" class="border rounded px-3 py-1 text-sm focus:ring-blue-500 focus:border-blue-500">
+                    <button id="next-day-btn" class="p-2 rounded-full hover:bg-gray-200" title="Hari Berikutnya">►</button>
+                </div>
             </div>
         </div>
     </header>
@@ -44,14 +57,17 @@
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const dateInput = document.getElementById('date-input');
+    const filterSelect = document.getElementById('filter-select');
     const prevDayBtn = document.getElementById('prev-day-btn');
     const nextDayBtn = document.getElementById('next-day-btn');
     const summaryContainer = document.getElementById('summary-content-container');
     const dateHeader = document.getElementById('date-header');
     const editReportBtn = document.getElementById('edit-report-btn');
 
-    async function fetchReportSummary(dateString) {
-        const url = `{{ route('daily_reports.index', $package->id) }}?date=${dateString}`;
+    async function fetchReportSummary() {
+        const dateString = dateInput.value;
+        const filterValue = filterSelect.value;
+        const url = `{{ route('daily_reports.index', $package->id) }}?date=${dateString}&filter=${filterValue}`;
         
         try {
             summaryContainer.style.opacity = '0.5';
@@ -65,17 +81,14 @@ document.addEventListener('DOMContentLoaded', function() {
 
             const data = await response.json();
             
-            // Perbarui konten utama dan header tanggal
             summaryContainer.innerHTML = data.html;
             dateHeader.textContent = data.date_header;
             
-            // Perbarui URL pada tombol "Buat / Edit Laporan"
             const editUrl = new URL(editReportBtn.href);
             editUrl.searchParams.set('date', dateString);
             editReportBtn.href = editUrl.toString();
 
-            // Perbarui URL di browser tanpa reload halaman
-            history.pushState({date: dateString}, '', url);
+            history.pushState(null, '', url);
 
         } catch (error) {
             console.error('Gagal memuat ringkasan:', error);
@@ -90,12 +103,13 @@ document.addEventListener('DOMContentLoaded', function() {
         currentDate.setDate(currentDate.getDate() + offset);
         const newDateString = currentDate.toISOString().split('T')[0];
         dateInput.value = newDateString;
-        fetchReportSummary(newDateString);
+        fetchReportSummary();
     }
 
     prevDayBtn.addEventListener('click', () => changeDay(-1));
     nextDayBtn.addEventListener('click', () => changeDay(1));
-    dateInput.addEventListener('change', () => fetchReportSummary(dateInput.value));
+    dateInput.addEventListener('change', fetchReportSummary);
+    filterSelect.addEventListener('change', fetchReportSummary);
 });
 </script>
 @endpush

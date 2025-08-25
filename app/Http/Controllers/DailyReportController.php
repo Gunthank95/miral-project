@@ -24,13 +24,13 @@ class DailyReportController extends Controller
     public function index(Request $request, Package $package)
     {
         $selectedDate = $request->input('date') ? Carbon::parse($request->input('date')) : Carbon::today();
+        $filter = $request->input('filter', 'this_period'); // Ambil nilai filter, default 'this_period'
 
         $report = $package->dailyReports()
                           ->whereDate('report_date', $selectedDate)
                           ->with(['weather', 'personnel'])
                           ->first();
 
-        // Filter aktivitas secara manual
         if ($report) {
             $filteredActivities = DailyLog::where('daily_report_id', $report->id)
                 ->whereDate('log_date', $report->report_date)
@@ -39,16 +39,17 @@ class DailyReportController extends Controller
             $report->setRelation('activities', $filteredActivities);
         }
         
-        $activityTree = $report ? $this->reportBuilder->generateDailyReport($report, $package->id) : collect();
+        // Teruskan variabel $filter ke service
+        $activityTree = $report ? $this->reportBuilder->generateDailyReport($report, $package->id, $filter) : collect();
 
         $viewData = [
             'package' => $package,
             'report' => $report,
             'selectedDate' => $selectedDate->toDateString(),
             'activityTree' => $activityTree,
+            'currentFilter' => $filter, // Kirim filter ke view agar dropdown tahu pilihan saat ini
         ];
 
-        // Respons untuk AJAX dari filter tanggal
         if ($request->ajax()) {
             $htmlContent = $report 
                 ? view('daily_reports.partials._summary-content', $viewData)->render()

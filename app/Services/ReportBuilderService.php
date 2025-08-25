@@ -7,7 +7,7 @@ use App\Models\RabItem;
 use App\Models\DailyLog;
 use App\Models\DailyReport;
 use Illuminate\Support\Collection;
-use Carbon\Carbon; // Pastikan Carbon di-import
+use Carbon\Carbon;
 
 class ReportBuilderService
 {
@@ -17,163 +17,200 @@ class ReportBuilderService
      * ========================================================================
      */
 
-    public function generateDailyReport(DailyReport $report, int $packageId): Collection
+    public function generateDailyReport(DailyReport $report, int $packageId, string $filter = 'this_period'): Collection
     {
         if ($report->activities->isEmpty()) {
             return collect();
         }
 
-        // GANTI: Menggunakan metode yang lebih efisien untuk mengambil item RAB
         $relevantRabItems = $this->getRelevantRabItemsForDaily($report->activities, $packageId);
         $this->attachDailyProgress($relevantRabItems, $report->activities, $packageId, $report->report_date);
         
-        return $this->buildTree($relevantRabItems);
+        $tree = $this->buildTree($relevantRabItems);
+
+        // Jika filter bukan 'all_items', jalankan fungsi filter rekursif
+        if ($filter !== 'all_items') {
+            return $this->filterTreeDaily($tree, $filter);
+        }
+
+        // Jika 'all_items', kembalikan semua
+        return $tree;
     }
 
     /**
-     * GANTI: Logika getRelevantRabItemsForDaily() dioptimalkan
-     * Menghindari kueri di dalam loop (N+1 problem).
+     * FUNGSI BARU: Filter rekursif untuk menyaring pohon aktivitas harian.
      */
+    private function filterTreeDaily(Collection $nodes, string $filter): Collection
+    {
+        return $nodes->map(function ($node) use ($filter) {
+            // 1. Filter terlebih dahulu anak-anak dari node ini secara rekursif
+            if ($node->children->isNotEmpty()) {
+                $node->children = $this->filterTreeDaily($node->children, $filter);
+            }
+
+            // 2. Tentukan apakah node ini harus disimpan berdasarkan progresnya SENDIRI
+            $shouldKeep = false;
+            if ($filter === 'this_period') {
+                if ($node->progress_weight_period > 0) {
+                    $shouldKeep = true;
+                }
+            } elseif ($filter === 'until_now') {
+                if (($node->previous_progress_weight + $node->progress_weight_period) > 0) {
+                    $shouldKeep = true;
+                }
+            }
+
+            // 3. Jika node ini tidak punya progres, cek apakah ia masih punya anak (setelah difilter).
+            //    Jika ya, simpan juga node ini (sebagai induk).
+            if (!$shouldKeep && $node->children->isNotEmpty()) {
+                $shouldKeep = true;
+            }
+
+            return $shouldKeep ? $node : null;
+        })->filter(); // Hapus semua node yang bernilai null
+    }
+
+
+
     private function getRelevantRabItemsForDaily(Collection $activities, int $packageId): Collection
     {
         $reportedItemIds = $activities->pluck('rab_item_id')->filter()->unique();
-        if ($reportedItemIds->isEmpty()) return collect();
+        if ($reportedItemIds->isEmpty()) {
+            return collect();
+        }
+        
+        $allPackageItems = RabItem::where('package_id', $packageId)->get();
+        $lineageIds = collect();
 
-        // Menggunakan relasi 'ancestors' untuk mengambil semua induk dalam satu kueri efisien.
-        $reportedItems = RabItem::with('ancestors')->whereIn('id', $reportedItemIds)->get();
+        foreach ($reportedItemIds as $itemId) {
+            $item = $allPackageItems->find($itemId);
+            if ($item) {
+                // Panggil getAncestorIds yang sudah diperbaiki
+                $lineageIds = $lineageIds->merge($this->getAncestorIds($item, $allPackageItems));
+            }
+        }
 
-        $allRelevantIds = $reportedItems->flatMap(function ($item) {
-            return $item->ancestors->pluck('id');
-        })->merge($reportedItemIds)->unique();
-
-        return RabItem::whereIn('id', $allRelevantIds)->get()->keyBy('id');
+        $finalIds = $reportedItemIds->merge($lineageIds)->unique();
+        return $allPackageItems->whereIn('id', $finalIds);
     }
 
     /**
-     * GANTI: Logika attachDailyProgress() dioptimalkan
-     * Mengambil semua data log sekaligus sebelum loop.
+     * PERBAIKAN: Fungsi ini sekarang mengembalikan ID (angka), bukan Objek.
      */
-    private function attachDailyProgress(Collection $rabItems, Collection $activities, int $packageId, string $selectedDate): void
+    private function getAncestorIds(RabItem $item, Collection $allItems): Collection
+    {
+        $ancestorIds = collect();
+        $parent = $item->parent_id ? $allItems->find($item->parent_id) : null;
+        while ($parent) {
+            $ancestorIds->push($parent->id); // <-- PUSH ID-NYA, BUKAN OBJEKNYA
+            $parent = $parent->parent_id ? $allItems->find($parent->parent_id) : null;
+        }
+        return $ancestorIds;
+    }
+
+    private function attachDailyProgress(Collection $rabItems, Collection $activities, int $packageId, Carbon $reportDate): void
     {
         $rabItemIds = $rabItems->pluck('id');
         
-        // Ambil semua log progres sebelumnya dalam satu kueri
-        $previousLogs = DailyLog::where('package_id', $packageId)
-                                ->whereIn('rab_item_id', $rabItemIds)
-                                ->whereDate('log_date', '<', $selectedDate)
-                                ->select('rab_item_id', \DB::raw('SUM(progress_volume) as total_volume'))
-                                ->groupBy('rab_item_id')
-                                ->pluck('total_volume', 'rab_item_id');
+        $previousProgress = DailyLog::where('package_id', $packageId)
+            ->whereIn('rab_item_id', $rabItemIds)
+            ->whereDate('log_date', '<', $reportDate)
+            ->groupBy('rab_item_id')
+            ->selectRaw('rab_item_id, SUM(progress_volume) as total_volume')
+            ->pluck('total_volume', 'rab_item_id');
+
+        $periodProgress = $activities->groupBy('rab_item_id')
+            ->map(fn($logs) => $logs->sum('progress_volume'));
 
         foreach ($rabItems as $item) {
-            $activity = $activities->firstWhere('rab_item_id', $item->id);
+            $item->is_reported_activity = $activities->contains('rab_item_id', $item->id);
+            $previousVolume = $previousProgress->get($item->id, 0);
+            $periodVolume = $periodProgress->get($item->id, 0);
+            $item->previous_progress_volume = $previousVolume;
+            $item->progress_volume_period = $periodVolume;
             
-            $item->is_reported_activity = (bool)$activity;
-            $item->progress_volume_period = $activity->progress_volume ?? 0;
-            // Ambil data dari koleksi yang sudah kita siapkan, bukan kueri baru
-            $item->previous_progress_volume = $previousLogs->get($item->id, 0); 
-            
-            $item->progress_weight_period = 0;
-            $item->previous_progress_weight = 0;
-
             if ($item->volume > 0) {
-                $item->progress_weight_period = ($item->progress_volume_period / $item->volume) * $item->weighting;
-                $item->previous_progress_weight = ($item->previous_progress_volume / $item->volume) * $item->weighting;
+                $item->previous_progress_weight = ($previousVolume / $item->volume) * $item->weighting;
+                $item->progress_weight_period = ($periodVolume / $item->volume) * $item->weighting;
+            } else {
+                $item->previous_progress_weight = 0;
+                $item->progress_weight_period = 0;
             }
         }
     }
+
 
     /**
      * ========================================================================
      * LOGIKA UNTUK LAPORAN PERIODIK (PERIODIC REPORT)
      * ========================================================================
      */
-
-    /**
-     * GANTI: Kueri di generatePeriodicReport() dioptimalkan
-     * Menggunakan eager loading yang lebih dalam untuk data sumber daya.
-     */
-    public function generatePeriodicReport(Package $package, string $startDate, string $endDate, string $filter = 'all'): array
+    
+    public function generatePeriodicReport(Package $package, Carbon $startDate, Carbon $endDate, string $filter): Collection
     {
-        $rabItems = RabItem::where('package_id', $package->id)->get()->keyBy('id');
-        $rabTree = collect();
+        $rabItems = RabItem::where('package_id', $package->id)->get();
+        if ($rabItems->isEmpty()) return collect();
+        $this->attachPeriodicProgress($rabItems, $package->id, $startDate, $endDate);
+        $tree = $this->buildTree($rabItems);
 
-        if ($rabItems->isNotEmpty()) {
-            $this->attachPeriodicProgress($rabItems, $package->id, $startDate, $endDate);
-            $rabTree = $this->buildTree($rabItems);
-
-            if ($filter !== 'all') {
-                $rabTree = $this->filterTree($rabTree, $filter);
-            }
+        if ($filter !== 'all_items') {
+            return $this->filterTreePeriodic($tree, $filter);
         }
-
-        // GANTI: Kueri ini diperbaiki dengan eager loading yang lebih spesifik
-        $reportsInPeriod = DailyReport::where('package_id', $package->id)
-            ->whereBetween('report_date', [$startDate, $endDate])
-            ->with([
-                'personnel', 
-                'weather', 
-                'activities.materials.material', // Eager load material di dalam materials
-                'activities.equipment'
-            ])
-            ->get();
-        
-        return [
-            'rabTree' => $rabTree,
-            'allPersonnel' => $reportsInPeriod->flatMap->personnel,
-            'allMaterials' => $reportsInPeriod->flatMap(fn($r) => $r->activities->flatMap->materials),
-            'allEquipment' => $reportsInPeriod->flatMap(fn($r) => $r->activities->flatMap->equipment),
-            'allWeather' => $reportsInPeriod->flatMap->weather,
-        ];
+        return $tree;
     }
     
-    private function attachPeriodicProgress(Collection $rabItems, int $packageId, string $startDate, string $endDate): void
+    private function filterTreePeriodic(Collection $nodes, string $filter): Collection
     {
-        $logs = DailyLog::where('package_id', $packageId)
-                        ->whereNotNull('rab_item_id')
-                        ->whereBetween('log_date', [$startDate, $endDate])
-                        ->get(['rab_item_id', 'progress_volume']);
-        
-        $logsBefore = DailyLog::where('package_id', $packageId)
-                              ->whereNotNull('rab_item_id')
-                              ->where('log_date', '<', $startDate)
-                              ->get(['rab_item_id', 'progress_volume']);
+        return $nodes->map(function ($node) use ($filter) {
+            if ($node->children->isNotEmpty()) {
+                $node->children = $this->filterTreePeriodic($node->children, $filter);
+            }
+            $shouldKeep = false;
+            if ($filter === 'this_period' && $node->bobot_periode_ini > 0) $shouldKeep = true;
+            if ($filter === 'until_now' && ($node->bobot_lalu + $node->bobot_periode_ini) > 0) $shouldKeep = true;
+            if (!$shouldKeep && $node->children->isNotEmpty()) $shouldKeep = true;
+            return $shouldKeep ? $node : null;
+        })->filter();
+    }
+	
+    private function attachPeriodicProgress(Collection $rabItems, int $packageId, Carbon $startDate, Carbon $endDate): void
+    {
+        $rabItemIds = $rabItems->pluck('id');
+
+        $bobotLalu = DailyLog::where('package_id', $packageId)
+            ->whereIn('rab_item_id', $rabItemIds)
+            ->where('log_date', '<', $startDate)
+            ->groupBy('rab_item_id')
+            ->selectRaw('rab_item_id, SUM(progress_volume) as total_volume')
+            ->pluck('total_volume', 'rab_item_id');
+
+        $bobotPeriodeIni = DailyLog::where('package_id', $packageId)
+            ->whereIn('rab_item_id', $rabItemIds)
+            ->whereBetween('log_date', [$startDate, $endDate])
+            ->groupBy('rab_item_id')
+            ->selectRaw('rab_item_id, SUM(progress_volume) as total_volume')
+            ->pluck('total_volume', 'rab_item_id');
 
         foreach ($rabItems as $item) {
-            $item->volume_lalu = $logsBefore->where('rab_item_id', $item->id)->sum('progress_volume');
-            $item->volume_periode_ini = $logs->where('rab_item_id', $item->id)->sum('progress_volume');
-            $item->bobot_lalu = 0;
-            $item->bobot_periode_ini = 0;
+            $volumeLalu = $bobotLalu->get($item->id, 0);
+            $volumePeriodeIni = $bobotPeriodeIni->get($item->id, 0);
+
+            $item->volume_lalu = $volumeLalu;
+            $item->volume_periode_ini = $volumePeriodeIni;
 
             if ($item->volume > 0) {
-                $item->bobot_lalu = ($item->volume_lalu / $item->volume) * $item->weighting;
-                $item->bobot_periode_ini = ($item->volume_periode_ini / $item->volume) * $item->weighting;
+                $item->bobot_lalu = ($volumeLalu / $item->volume) * $item->weighting;
+                $item->bobot_periode_ini = ($volumePeriodeIni / $item->volume) * $item->weighting;
+            } else {
+                $item->bobot_lalu = 0;
+                $item->bobot_periode_ini = 0;
             }
         }
     }
-
-    private function filterTree(Collection $tree, string $filter): Collection
-    {
-        return $tree->map(function ($item) use ($filter) {
-            if ($item->children->isNotEmpty()) {
-                $item->children = $this->filterTree($item->children, $filter);
-            }
-
-            $sd_saat_ini = $item->bobot_lalu + $item->bobot_periode_ini;
-            $periode_ini = $item->bobot_periode_ini;
-
-            if ($item->children->isNotEmpty()) return $item;
-            if ($filter === 'this_period' && $periode_ini > 0) return $item;
-            if ($filter === 'until_now' && $sd_saat_ini > 0) return $item;
-
-            return null;
-        })->filter();
-    }
-
 
     /**
      * ========================================================================
-     * FUNGSI BERSAMA (SHARED FUNCTION)
+     * LOGIKA BERSAMA (SHARED LOGIC)
      * ========================================================================
      */
 
@@ -184,30 +221,26 @@ class ReportBuilderService
 
         foreach ($childrenOfParent as $item) {
             $children = $this->buildTree($items, $item->id);
-            $item->children = $children;
+            if ($children->isNotEmpty()) {
+                $item->children = $children;
+            } else {
+                $item->children = collect();
+            }
             
             if (is_null($item->volume)) {
                 $item->weighting = $children->sum('weighting');
             }
 
-            // Akumulasi progres (untuk kedua jenis laporan)
-            if (isset($item->bobot_lalu)) { // Periodic
+            if (isset($item->bobot_lalu)) {
                 $item->bobot_lalu += $children->sum('bobot_lalu');
                 $item->bobot_periode_ini += $children->sum('bobot_periode_ini');
             }
-            if (isset($item->previous_progress_weight)) { // Daily
+            if (isset($item->previous_progress_weight)) {
                 $item->previous_progress_weight += $children->sum('previous_progress_weight');
                 $item->progress_weight_period += $children->sum('progress_weight_period');
             }
             
             $branch->push($item);
-        }
-
-        // Filter akhir untuk Laporan Harian (hanya tampilkan yang relevan)
-        if (isset($branch->first()->is_reported_activity)) {
-            return $branch->filter(function ($item) {
-                 return ($item->previous_progress_weight + $item->progress_weight_period) > 0 || $item->is_reported_activity;
-            });
         }
         
         return $branch;
