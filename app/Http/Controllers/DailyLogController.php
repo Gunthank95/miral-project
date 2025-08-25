@@ -14,6 +14,7 @@ use Illuminate\Http\Request; // GANTI: Pastikan namespace ini benar
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
+use App\Models\Package;
 
 class DailyLogController extends Controller
 {
