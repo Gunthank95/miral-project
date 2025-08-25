@@ -15,6 +15,16 @@
         <form id="daily-log-form" action="{{ route('daily_log.store', $package->id) }}" method="POST" enctype="multipart/form-data" class="bg-white rounded shadow p-6">
             @csrf
             <input type="hidden" name="daily_report_id" value="{{ $report->id }}">
+			@if ($errors->any())
+				<div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-4" role="alert">
+					<p class="font-bold">Terjadi Kesalahan:</p>
+					<ul class="mt-2 list-disc list-inside text-sm">
+						@foreach ($errors->all() as $error)
+							<li>{{ $error }}</li>
+						@endforeach
+					</ul>
+				</div>
+			@endif
             <div id="validation-errors" class="hidden bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert"></div>
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -47,7 +57,7 @@
 
                     <div id="custom-work-wrapper" class="mb-4 hidden">
                         <label for="custom_work_name" class="block text-sm font-medium text-gray-700">Nama Pekerjaan Kustom</label>
-                        <input type="text" name="custom_work_name" id="custom_work_name" class="mt-1 w-full border rounded px-3 py-2" placeholder="Ketik nama pekerjaan baru...">
+                        <input type="text" name="custom_work_name" id="custom_work_name" value="{{ old('custom_work_name') }}" class="mt-1 w-full border rounded px-3 py-2" placeholder="Ketik nama pekerjaan baru...">
                     </div>
 
                     <div class="mb-4 p-3 border rounded-lg">
