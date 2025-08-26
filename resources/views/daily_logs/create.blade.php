@@ -116,7 +116,7 @@
                             <button type="button" id="capture-btn" class="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm">Ambil Foto (Kamera)</button>
                             <button type="button" id="gallery-btn" class="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm">Pilih dari Galeri</button>
                         </div>
-                        <input type="file" id="photo-input" accept="image/*" class="hidden" multiple/>
+                        <input type="file" id="photo-input" name="photos[]" accept="image/*" class="hidden" multiple/>
                     </div>
                 </div>
             </div>
@@ -552,6 +552,65 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // Inisialisasi form
+	
+	// ======================================================
+    // MENGGANTI PROSES SUBMIT FORM DENGAN AJAX
+    // ======================================================
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            e.preventDefault(); // Mencegah form dikirim secara normal
+
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Menyimpan...';
+            errorDiv.classList.add('hidden');
+            errorDiv.innerHTML = '';
+
+            const formData = new FormData(form);
+            formData.delete('photos[]'); // Hapus input file default
+
+            // Tambahkan file yang sudah diakumulasi ke form data
+            accumulatedFiles.forEach(file => {
+                formData.append('photos[]', file);
+            });
+
+            fetch(form.action, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-CSRF-TOKEN': document.querySelector('input[name="_token"]').value,
+                    'Accept': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Jika berhasil, arahkan ke halaman edit laporan
+                    window.location.href = data.redirect_url;
+                } else {
+                    // Jika ada error validasi
+                    let errorHtml = '<p class="font-bold">Terjadi Kesalahan:</p><ul class="mt-2 list-disc list-inside text-sm">';
+                    for (const key in data.errors) {
+                        data.errors[key].forEach(error => {
+                            errorHtml += `<li>${error}</li>`;
+                        });
+                    }
+                    errorHtml += '</ul>';
+                    errorDiv.innerHTML = errorHtml;
+                    errorDiv.classList.remove('hidden');
+                    
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = 'Simpan Aktivitas Pekerjaan';
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                errorDiv.innerHTML = 'Terjadi kesalahan pada server. Silakan coba lagi.';
+                errorDiv.classList.remove('hidden');
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Simpan Aktivitas Pekerjaan';
+            });
+        });
+    }
     resetAndAddInitialRows();
 });
 </script>
