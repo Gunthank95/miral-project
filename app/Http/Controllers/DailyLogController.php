@@ -125,6 +125,27 @@ class DailyLogController extends Controller
 			return back()->withErrors($e->errors())->withInput();
 		}
 	}
+	
+	public function edit(DailyLog $daily_log)
+    {
+        // Secara otomatis, Laravel akan mencari DailyLog berdasarkan ID dari URL.
+        // Kita sebut variabelnya $daily_log sesuai dengan parameter di route.
+
+        // Ambil data terkait yang dibutuhkan untuk form
+        $report = $daily_log->report;
+        $package = $report->package;
+        $mainRabItems = $package->rabItems()->whereNull('parent_id')->get()->sortBy('id');
+        $materials = Material::orderBy('name')->get();
+
+        // Kirim semua data yang dibutuhkan ke view 'daily_logs.edit'
+        return view('daily_logs.edit', [
+            'activity' => $daily_log, // View menggunakan variabel 'activity', jadi kita sesuaikan.
+            'report' => $report,
+            'package' => $package,
+            'mainRabItems' => $mainRabItems,
+            'materials' => $materials,
+        ]);
+    }
 
     // GANTI: Gunakan UpdateDailyLogRequest di sini
     public function update(UpdateDailyLogRequest $request, DailyLog $daily_log)

@@ -70,8 +70,6 @@ class ReportBuilderService
         })->filter(); // Hapus semua node yang bernilai null
     }
 
-
-
     private function getRelevantRabItemsForDaily(Collection $activities, int $packageId): Collection
     {
         $reportedItemIds = $activities->pluck('rab_item_id')->filter()->unique();
@@ -85,7 +83,6 @@ class ReportBuilderService
         foreach ($reportedItemIds as $itemId) {
             $item = $allPackageItems->find($itemId);
             if ($item) {
-                // Panggil getAncestorIds yang sudah diperbaiki
                 $lineageIds = $lineageIds->merge($this->getAncestorIds($item, $allPackageItems));
             }
         }
@@ -94,15 +91,12 @@ class ReportBuilderService
         return $allPackageItems->whereIn('id', $finalIds);
     }
 
-    /**
-     * PERBAIKAN: Fungsi ini sekarang mengembalikan ID (angka), bukan Objek.
-     */
     private function getAncestorIds(RabItem $item, Collection $allItems): Collection
     {
         $ancestorIds = collect();
         $parent = $item->parent_id ? $allItems->find($item->parent_id) : null;
         while ($parent) {
-            $ancestorIds->push($parent->id); // <-- PUSH ID-NYA, BUKAN OBJEKNYA
+            $ancestorIds->push($parent->id);
             $parent = $parent->parent_id ? $allItems->find($parent->parent_id) : null;
         }
         return $ancestorIds;
@@ -139,7 +133,6 @@ class ReportBuilderService
         }
     }
 
-
     /**
      * ========================================================================
      * LOGIKA UNTUK LAPORAN PERIODIK (PERIODIC REPORT)
@@ -172,32 +165,27 @@ class ReportBuilderService
             return $shouldKeep ? $node : null;
         })->filter();
     }
-	
+    
     private function attachPeriodicProgress(Collection $rabItems, int $packageId, Carbon $startDate, Carbon $endDate): void
     {
         $rabItemIds = $rabItems->pluck('id');
-
         $bobotLalu = DailyLog::where('package_id', $packageId)
             ->whereIn('rab_item_id', $rabItemIds)
             ->where('log_date', '<', $startDate)
             ->groupBy('rab_item_id')
             ->selectRaw('rab_item_id, SUM(progress_volume) as total_volume')
             ->pluck('total_volume', 'rab_item_id');
-
         $bobotPeriodeIni = DailyLog::where('package_id', $packageId)
             ->whereIn('rab_item_id', $rabItemIds)
             ->whereBetween('log_date', [$startDate, $endDate])
             ->groupBy('rab_item_id')
             ->selectRaw('rab_item_id, SUM(progress_volume) as total_volume')
             ->pluck('total_volume', 'rab_item_id');
-
         foreach ($rabItems as $item) {
             $volumeLalu = $bobotLalu->get($item->id, 0);
             $volumePeriodeIni = $bobotPeriodeIni->get($item->id, 0);
-
             $item->volume_lalu = $volumeLalu;
             $item->volume_periode_ini = $volumePeriodeIni;
-
             if ($item->volume > 0) {
                 $item->bobot_lalu = ($volumeLalu / $item->volume) * $item->weighting;
                 $item->bobot_periode_ini = ($volumePeriodeIni / $item->volume) * $item->weighting;
@@ -221,11 +209,7 @@ class ReportBuilderService
 
         foreach ($childrenOfParent as $item) {
             $children = $this->buildTree($items, $item->id);
-            if ($children->isNotEmpty()) {
-                $item->children = $children;
-            } else {
-                $item->children = collect();
-            }
+            $item->children = $children->isNotEmpty() ? $children : collect();
             
             if (is_null($item->volume)) {
                 $item->weighting = $children->sum('weighting');
