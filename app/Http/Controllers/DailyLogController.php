@@ -148,14 +148,52 @@ class DailyLogController extends Controller
     }
 
     // GANTI: Gunakan UpdateDailyLogRequest di sini
-    public function update(UpdateDailyLogRequest $request, DailyLog $daily_log)
+    public function update(UpdateDailyLogRequest $request, $daily_report_id, DailyLog $daily_log)
     {
-        // GANTI: Ambil data yang sudah tervalidasi
         $validated = $request->validated();
-        $daily_log->update($validated);
-        
-        return redirect()->route('daily_reports.edit', ['package' => $daily_log->package_id, 'daily_report' => $daily_log->daily_report_id])
-                         ->with('success', 'Aktivitas berhasil diperbarui.');
+
+        \DB::beginTransaction();
+        try {
+            $daily_log->update($validated);
+
+            // Proses foto baru yang diunggah
+            if ($request->hasFile('new_photos')) {
+                foreach ($request->file('new_photos') as $photo) {
+                    $path = $photo->store('daily-log-photos', 'public');
+                    $daily_log->photos()->create(['photo_path' => $path]);
+                }
+            }
+
+            // Proses foto yang dihapus
+            if ($request->has('deleted_photos')) {
+                foreach ($request->deleted_photos as $photo_id) {
+                    $photo_to_delete = $daily_log->photos()->find($photo_id);
+                    if ($photo_to_delete) {
+                        // Hapus file dari storage
+                        \Storage::disk('public')->delete($photo_to_delete->photo_path);
+                        // Hapus record dari database
+                        $photo_to_delete->delete();
+                    }
+                }
+            }
+
+            \DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'redirect_url' => route('daily_reports.edit', ['daily_report' => $daily_report_id])
+            ]);
+
+        } catch (\Exception $e) {
+            \DB::rollBack();
+            \Log::error('Error updating daily log: '.$e->getMessage());
+
+            // Mengembalikan error dalam format JSON
+            return response()->json([
+                'success' => false,
+                'errors' => ['general' => ['Terjadi kesalahan saat memperbarui data.']]
+            ], 500);
+        }
     }
 
     public function destroy(DailyLog $daily_log)

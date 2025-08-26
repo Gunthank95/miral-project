@@ -99,7 +99,7 @@
 @push('scripts')
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // ======================================================
+	// ======================================================
     // MENGISI DATA AWAL DARI DATABASE
     // ======================================================
     const initialMaterials = @json($activity->materials ?? []);
@@ -314,30 +314,70 @@ document.addEventListener('DOMContentLoaded', function() {
     if(photoInput) photoInput.addEventListener('change', function(event) { /* ... */ });
     if(photoPreviewContainer) photoPreviewContainer.addEventListener('click', function(e) { /* ... */ });
 
-    if (form) form.addEventListener('submit', function(event) {
-        event.preventDefault();
-        const formData = new FormData(form);
-        formData.delete('photos[]');
-        accumulatedFiles.forEach(photo => {
-            if (photo.isNew) {
-                formData.append('photos[]', photo.file);
-            }
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Menyimpan...';
+            errorDiv.classList.add('hidden');
+            errorDiv.innerHTML = '';
+
+            const formData = new FormData(form);
+
+            // 1. Hapus input file default agar tidak konflik
+            formData.delete('photos[]');
+
+            // 2. Tambahkan file-file baru yang sudah diakumulasi
+            accumulatedFiles.forEach(file => {
+                formData.append('new_photos[]', file);
+            });
+
+            // 3. Tambahkan ID foto yang akan dihapus
+            deletedPhotos.forEach(photoId => {
+                formData.append('deleted_photos[]', photoId);
+            });
+            
+            // 4. Set method untuk update
+            formData.append('_method', 'PUT');
+
+
+            fetch(form.action, {
+                method: 'POST', // Method harus POST untuk FormData dengan file
+                body: formData,
+                headers: {
+                    'X-CSRF-TOKEN': document.querySelector('input[name="_token"]').value,
+                    'Accept': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    window.location.href = data.redirect_url;
+                } else {
+                    let errorHtml = '<p class="font-bold">Terjadi Kesalahan:</p><ul class="mt-2 list-disc list-inside text-sm">';
+                    for (const key in data.errors) {
+                        data.errors[key].forEach(error => {
+                            errorHtml += `<li>${error}</li>`;
+                        });
+                    }
+                    errorHtml += '</ul>';
+                    errorDiv.innerHTML = errorHtml;
+                    errorDiv.classList.remove('hidden');
+                    
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = 'Simpan Perubahan';
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                errorDiv.innerHTML = 'Terjadi kesalahan pada server. Silakan coba lagi.';
+                errorDiv.classList.remove('hidden');
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Simpan Perubahan';
+            });
         });
-        
-        fetch(form.action, {
-            method: 'POST',
-            body: formData,
-            headers: { 'X-CSRF-TOKEN': document.querySelector('input[name="_token"]').value, 'Accept': 'application/json' }
-        })
-        .then(response => {
-            if (response.ok) {
-                window.location.href = "{{ route('daily_reports.edit', ['package' => $package->id, 'daily_report' => $report->id]) }}";
-            } else {
-                alert('Terjadi kesalahan saat menyimpan data.');
-            }
-        })
-        .catch(error => console.error('Error:', error));
-    });
+    }
 
     if (progressInput) progressInput.addEventListener('input', updateAllDisplays);
     inputTypeRadios.forEach(radio => {
