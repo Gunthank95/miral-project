@@ -91,6 +91,20 @@
                         <button type="button" id="add-manpower-btn" class="mt-2 text-sm text-blue-600 hover:underline">+ Tambah Tenaga Kerja</button>
                     </div>
                 </div>
+				
+				
+				{{-- TAMBAHKAN KODE BARU DI SINI --}}
+				<div class="mb-4">
+					<div class="flex justify-between items-center mb-1">
+						<label class="block text-sm font-medium text-gray-700">Tenaga Kerja</label>
+						<button type="button" id="add-manpower-btn" class="text-sm bg-blue-500 text-white px-3 py-1 rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 transition ease-in-out duration-150">
+							+ Tambah
+						</button>
+					</div>
+					<div id="manpower-list" class="space-y-2">
+						{{-- Baris tenaga kerja akan ditambahkan di sini oleh JavaScript --}}
+					</div>
+				</div>
 
                 {{-- Kolom Kanan --}}
                 <div>
@@ -99,6 +113,7 @@
                         <div id="equipment-list" class="space-y-4 mt-1"></div>
                         <button type="button" id="add-equipment-btn" class="mt-2 text-sm text-blue-600 hover:underline">+ Tambah Alat</button>
                     </div>
+					
 
                     <div class="mb-4">
                         <div class="flex items-center justify-between">
@@ -192,8 +207,11 @@ document.addEventListener('DOMContentLoaded', function() {
     const equipmentList = document.getElementById('equipment-list');
     const addEquipmentBtn = document.getElementById('add-equipment-btn');
     let equipmentCounter = 0;
-    const manpowerList = document.getElementById('manpower-list');
+	
+	const manpowerList = document.getElementById('manpower-list');
     const addManpowerBtn = document.getElementById('add-manpower-btn');
+	let manpowerCounter = 0;
+	
     const manpowerRoles = ['Pekerja', 'Mandor', 'Kepala Tukang', 'Tukang', 'Pembantu Tukang', 'Operator', 'Pembantu Operator', 'Mekanik', 'Pembantu Mekanik', 'Supir', 'Pembantu Supir'];
     let manpowerCounter = 0;
     const captureBtn = document.getElementById('capture-btn');
@@ -229,21 +247,21 @@ document.addEventListener('DOMContentLoaded', function() {
     // FUNGSI-FUNGSI
     // ======================================================
     function addManpowerRow(role = '', quantity = '') {
-        manpowerCounter++;
-        const row = document.createElement('div');
-        row.classList.add('flex', 'items-center', 'space-x-2', 'manpower-row-container');
-        let optionsHtml = '<option value="">-- Pilih Jabatan --</option>';
-        manpowerRoles.forEach(r => {
-            const isSelected = r === role ? 'selected' : '';
-            optionsHtml += `<option value="${r}" ${isSelected}>${r}</option>`;
-        });
-        row.innerHTML = `
-            <select name="manpower[${manpowerCounter}][role]" class="w-1/2 border rounded px-3 py-2 text-sm">${optionsHtml}</select>
-            <input type="number" value="${quantity}" name="manpower[${manpowerCounter}][quantity]" class="w-1/2 border rounded px-3 py-2 text-sm" placeholder="Jumlah">
-            <button type="button" class="remove-btn text-red-500 font-bold">X</button>
-        `;
-        manpowerList.appendChild(row);
-    }
+		manpowerCounter++;
+		const row = document.createElement('div');
+		row.classList.add('flex', 'space-x-2', 'items-center', 'manpower-row-container');
+
+		row.innerHTML = `
+			<div class="w-2/3">
+				<input type="text" name="manpower[${manpowerCounter}][role]" value="${role}" class="w-full border rounded px-3 py-2 text-sm" placeholder="Jabatan (e.g., Tukang, Mandor)">
+			</div>
+			<div class="w-1/3">
+				<input type="number" name="manpower[${manpowerCounter}][quantity]" value="${quantity}" class="w-full border rounded px-3 py-2 text-sm" placeholder="Jumlah">
+			</div>
+			<button type="button" class="remove-btn text-red-500 font-bold p-2">X</button>
+		`;
+		manpowerList.appendChild(row);
+	}
 
     function addMaterialRow(materialId = '', quantity = '', unit = '') {
         materialCounter++;
@@ -279,8 +297,8 @@ document.addEventListener('DOMContentLoaded', function() {
         `;
         equipmentList.appendChild(row);
     }
-
-    function renderPhotoPreview() {
+	
+	function renderPhotoPreview() {
         photoPreviewContainer.innerHTML = '';
         accumulatedFiles.forEach((file, index) => {
             const previewElement = document.createElement('div');
@@ -421,6 +439,20 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
+	
+	if (addManpowerBtn) {
+		addManpowerBtn.addEventListener('click', () => addManpowerRow());
+		// Tambah satu baris kosong saat halaman dimuat
+		addManpowerRow();
+	}
+
+	if (manpowerList) {
+		manpowerList.addEventListener('click', function(e) {
+			if (e.target.classList.contains('remove-btn')) {
+				e.target.closest('.manpower-row-container').remove();
+			}
+		});
+	}
     
     if(captureBtn) captureBtn.addEventListener('click', () => {
         photoInput.setAttribute('capture', 'environment');

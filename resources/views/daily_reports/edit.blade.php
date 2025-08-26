@@ -185,8 +185,18 @@
 							</tr>
                             <tr id="details-{{ $activity->id }}" class="hidden border-t bg-gray-50">
                                 <td colspan="4" class="p-4">
-                                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
                                         <div>
+											<h4 class="font-semibold mb-2">Tenaga Kerja:</h4>
+											<ul class="list-disc list-inside text-xs">
+												@forelse ($activity->manpower as $person)
+													<li>{{ $person->role }} ({{ $person->quantity }} orang)</li>
+												@empty
+													<li>-</li>
+												@endforelse
+											</ul>
+										</div>
+										<div>
                                             <h4 class="font-semibold mb-2">Peralatan:</h4>
                                             <ul class="list-disc list-inside text-xs">
                                                 @forelse ($activity->equipment as $eq)
