@@ -44,7 +44,7 @@
                 <div class="bg-green-100 text-green-700 p-3 rounded mb-4">{{ session('success') }}</div>
             @endif
             
-            <form action="{{ route('admin.materials.store') }}" method="POST">
+            <form action="{{ route('superadmin.materials.store') }}" method="POST">
                 @csrf
                 <div class="mb-4">
                     <label for="name" class="block text-sm font-medium text-gray-700">Nama Material</label>

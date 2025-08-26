@@ -53,9 +53,21 @@ Route::post('/projects', [ProjectRegistrationController::class, 'store'])->name(
 
 // --- ROUTE UNTUK SUPER ADMIN (Perlu Login & Peran Super Admin) ---
 Route::prefix('superadmin')->middleware(['auth', 'super.admin'])->name('superadmin.')->group(function () {
-	Route::get('/dashboard', [SuperAdminController::class, 'dashboard'])->name('dashboard');
+    Route::get('/dashboard', [SuperAdminController::class, 'dashboard'])->name('dashboard');
     Route::get('/registration-tokens', [SuperAdminController::class, 'tokensIndex'])->name('tokens.index');
     Route::post('/registration-tokens', [SuperAdminController::class, 'tokensStore'])->name('tokens.store');
+
+    // Rute untuk Data Master sekarang ada di sini
+    Route::get('/materials', [MasterDataController::class, 'materialsIndex'])->name('materials.index');
+    Route::post('/materials', [MasterDataController::class, 'materialsStore'])->name('materials.store');
+    Route::post('/materials/modal-store', [MasterDataController::class, 'materialsStoreModal'])->name('materials.store.modal');
+    Route::get('/work-items', [MasterDataController::class, 'workItemsIndex'])->name('work-items.index');
+    Route::post('/work-items', [MasterDataController::class, 'workItemsStore'])->name('work-items.store');
+    Route::get('/work-items/{work_item}/materials', [MasterDataController::class, 'workItemNeedsIndex'])->name('work-items.materials.index');
+    Route::post('/work-items/{work_item}/materials', [MasterDataController::class, 'workItemNeedsStore'])->name('work-items.materials.store');
+    Route::delete('/work-items/{work_item}/materials/{need}', [MasterDataController::class, 'workItemNeedsDestroy'])->name('work-items.materials.destroy');
+    Route::get('/work-items/{work_item}/materials/{need}/edit', [MasterDataController::class, 'workItemNeedsEdit'])->name('work-items.materials.edit');
+    Route::put('/work-items/{work_item}/materials/{need}', [MasterDataController::class, 'workItemNeedsUpdate'])->name('work-items.materials.update');
 });
 
 // --- ROUTE LAINNYA (Perlu Login) ---
@@ -124,20 +136,6 @@ Route::middleware('auth')->group(function () {
 	Route::get('/project/{project}/invitations', [InvitationController::class, 'index'])->name('invitations.index');
 	Route::post('/project/{project}/invitations', [InvitationController::class, 'store'])->name('invitations.store');
     Route::get('/project/{project}/users', [UserController::class, 'index'])->name('users.index');
-});
-
-// --- ROUTE UNTUK ADMIN DATA MASTER (Perlu Login) ---
-Route::prefix('admin')->middleware('auth')->name('admin.')->group(function () {
-    Route::get('/materials', [MasterDataController::class, 'materialsIndex'])->name('materials.index');
-    Route::post('/materials', [MasterDataController::class, 'materialsStore'])->name('materials.store');
-    Route::post('/materials/modal-store', [MasterDataController::class, 'materialsStoreModal'])->name('materials.store.modal');
-    Route::get('/work-items', [MasterDataController::class, 'workItemsIndex'])->name('work-items.index');
-    Route::post('/work-items', [MasterDataController::class, 'workItemsStore'])->name('work-items.store');
-    Route::get('/work-items/{work_item}/materials', [MasterDataController::class, 'workItemNeedsIndex'])->name('work-items.materials.index');
-    Route::post('/work-items/{work_item}/materials', [MasterDataController::class, 'workItemNeedsStore'])->name('work-items.materials.store');
-    Route::delete('/work-items/{work_item}/materials/{need}', [MasterDataController::class, 'workItemNeedsDestroy'])->name('work-items.materials.destroy');
-    Route::get('/work-items/{work_item}/materials/{need}/edit', [MasterDataController::class, 'workItemNeedsEdit'])->name('work-items.materials.edit');
-    Route::put('/work-items/{work_item}/materials/{need}', [MasterDataController::class, 'workItemNeedsUpdate'])->name('work-items.materials.update');
 });
 
 // --- ROUTE UNTUK API INTERNAL (Perlu Login) ---

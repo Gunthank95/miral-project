@@ -23,9 +23,9 @@
                                 <td class="px-4 py-2">{{ $workItem->name }}</td>
                                 <td class="px-4 py-2">{{ $workItem->unit }}</td>
                                 <td class="px-4 py-2"> {{-- <-- TOMBOL BARU DITAMBAHKAN DI SINI --}}
-                                    <a href="{{ route('admin.work-items.materials.index', $workItem->id) }}" class="text-blue-600 hover:underline text-xs">
-                                        Kelola Material
-                                    </a>
+                                    <a href="{{ route('superadmin.work-items.materials.index', $workItem->id) }}" class="text-blue-600 hover:underline text-xs">
+										Kelola Material
+									</a>
                                 </td>
                             </tr>
                         @empty
@@ -49,7 +49,7 @@
             @if (session('success'))
                 <div class="bg-green-100 text-green-700 p-3 rounded mb-4">{{ session('success') }}</div>
             @endif
-            <form action="{{ route('admin.work-items.store') }}" method="POST">
+            <form action="{{ route('superadmin.work-items.store') }}" method="POST">
                 @csrf
                 <div class="mb-4">
                     <label for="name" class="block text-sm font-medium">Nama Pekerjaan</label>

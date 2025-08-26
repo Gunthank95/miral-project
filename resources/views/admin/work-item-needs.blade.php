@@ -31,8 +31,8 @@
                                     <td class="text-center px-4 py-2">{{ $need->coefficient }}</td>
                                     <td class="px-4 py-2">{{ $need->material->unit }}</td>
                                     <td class="px-4 py-2 flex items-center space-x-2">
-                                        <a href="{{ route('admin.work-items.materials.edit', ['work_item' => $workItem->id, 'need' => $need->id]) }}" class="text-blue-600 hover:underline text-xs">Edit</a>
-                                        <form action="{{ route('admin.work-items.materials.destroy', ['work_item' => $workItem->id, 'need' => $need->id]) }}" method="POST" onsubmit="return confirm('Anda yakin ingin menghapus material ini?');">
+                                        <a href="{{ route('superadmin.work-items.materials.edit', ['work_item' => $workItem->id, 'need' => $need->id]) }}" ...>Edit</a>
+                                        <form action="{{ route('superadmin.work-items.materials.destroy', ['work_item' => $workItem->id, 'need' => $need->id]) }}" ...>
                                             @csrf
                                             @method('DELETE')
                                             <button type="submit" class="text-red-600 hover:underline text-xs">Hapus</button>
@@ -62,7 +62,7 @@
                 @if (session('error'))
                     <div class="bg-red-100 text-red-700 p-3 rounded mb-4">{{ session('error') }}</div>
                 @endif
-                <form action="{{ route('admin.work-items.materials.store', $workItem->id) }}" method="POST">
+                <form action="{{ route('superadmin.work-items.materials.store', $workItem->id) }}" method="POST">
                     @csrf
                     <div class="mb-4">
                         <label for="material_id" class="block text-sm font-medium">Material</label>
