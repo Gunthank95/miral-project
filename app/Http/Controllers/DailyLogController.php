@@ -148,47 +148,95 @@ class DailyLogController extends Controller
     }
 
     // GANTI: Gunakan UpdateDailyLogRequest di sini
-    public function update(UpdateDailyLogRequest $request, $daily_report_id, DailyLog $daily_log)
+    public function update(Request $request, DailyLog $daily_log)
     {
-        $validated = $request->validated();
+        $validated = $request->validate([
+            'rab_item_id' => 'required|exists:rab_items,id',
+            'progress_volume' => 'required|numeric|min:0',
+            'manpower_count' => 'nullable|integer',
+            'new_photos.*' => 'nullable|image|max:2048',
+            'deleted_photos' => 'nullable|json',
+            // TAMBAHKAN: Validasi untuk material dan peralatan
+            'materials' => 'nullable|array',
+            'materials.*.id' => 'required_with:materials|exists:materials,id',
+            'materials.*.quantity' => 'required_with:materials|numeric|min:0',
+            'materials.*.unit' => 'required_with:materials|string',
+            'equipment' => 'nullable|array',
+            'equipment.*.name' => 'required_with:equipment|string|max:255',
+            'equipment.*.quantity' => 'required_with:equipment|integer|min:1',
+            'equipment.*.specification' => 'nullable|string',
+        ]);
 
         \DB::beginTransaction();
         try {
-            $daily_log->update($validated);
+            $daily_log->update([
+                'progress_volume' => $validated['progress_volume'],
+                'manpower_count' => $validated['manpower_count'] ?? $daily_log->manpower_count,
+            ]);
 
-            // Proses foto baru yang diunggah
-            if ($request->hasFile('new_photos')) {
-                foreach ($request->file('new_photos') as $photo) {
-                    $path = $photo->store('daily-log-photos', 'public');
-                    $daily_log->photos()->create(['photo_path' => $path]);
-                }
-            }
-
-            // Proses foto yang dihapus
-            if ($request->has('deleted_photos')) {
-                foreach ($request->deleted_photos as $photo_id) {
-                    $photo_to_delete = $daily_log->photos()->find($photo_id);
-                    if ($photo_to_delete) {
-                        // Hapus file dari storage
-                        \Storage::disk('public')->delete($photo_to_delete->photo_path);
-                        // Hapus record dari database
-                        $photo_to_delete->delete();
+            // TAMBAHKAN: Logika untuk update material
+            // 1. Hapus semua material lama yang terkait dengan log ini
+            $daily_log->materials()->delete();
+            // 2. Masukkan kembali material dari form jika ada
+            if (!empty($validated['materials'])) {
+                foreach ($validated['materials'] as $materialData) {
+                    if (!is_null($materialData['id']) && !is_null($materialData['quantity'])) {
+                        $daily_log->materials()->create([
+                            'material_id' => $materialData['id'],
+                            'quantity' => $materialData['quantity'],
+                            'unit' => $materialData['unit']
+                        ]);
                     }
                 }
             }
 
-            \DB::commit();
+            // TAMBAHKAN: Logika untuk update peralatan
+            // 1. Hapus semua peralatan lama
+            $daily_log->equipment()->delete();
+            // 2. Masukkan kembali peralatan dari form jika ada
+            if (!empty($validated['equipment'])) {
+                foreach ($validated['equipment'] as $equipmentData) {
+                     if (!is_null($equipmentData['name']) && !is_null($equipmentData['quantity'])) {
+                        $daily_log->equipment()->create([
+                            'name' => $equipmentData['name'],
+                            'quantity' => $equipmentData['quantity'],
+                            'specification' => $equipmentData['specification']
+                        ]);
+                    }
+                }
+            }
 
+
+            // Logika untuk proses foto (dari solusi sebelumnya, tetap dipertahankan)
+            if ($request->hasFile('new_photos')) {
+                foreach ($request->file('new_photos') as $photo) {
+                    $path = $photo->store('photos', 'public');
+                    $daily_log->photos()->create(['file_path' => $path]);
+                }
+            }
+
+            if ($request->filled('deleted_photos')) {
+                $deletedPhotoIds = json_decode($request->deleted_photos, true);
+                if (is_array($deletedPhotoIds) && !empty($deletedPhotoIds)) {
+                    $photosToDelete = $daily_log->photos()->whereIn('id', $deletedPhotoIds)->get();
+                    foreach ($photosToDelete as $photo) {
+                        \Storage::disk('public')->delete($photo->file_path);
+                        $photo->delete();
+                    }
+                }
+            }
+            
+            \DB::commit();
+            
             return response()->json([
                 'success' => true,
-                'redirect_url' => route('daily_reports.edit', ['daily_report' => $daily_report_id])
+                'redirect_url' => route('daily_reports.edit', ['package' => $daily_log->report->package_id, 'daily_report' => $daily_log->daily_report_id])
             ]);
 
         } catch (\Exception $e) {
             \DB::rollBack();
             \Log::error('Error updating daily log: '.$e->getMessage());
 
-            // Mengembalikan error dalam format JSON
             return response()->json([
                 'success' => false,
                 'errors' => ['general' => ['Terjadi kesalahan saat memperbarui data.']]

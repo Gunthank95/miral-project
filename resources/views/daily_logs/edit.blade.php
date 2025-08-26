@@ -99,13 +99,13 @@
 @push('scripts')
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-	// ======================================================
+    // ======================================================
     // MENGISI DATA AWAL DARI DATABASE
     // ======================================================
     const initialMaterials = @json($activity->materials ?? []);
     const initialEquipment = @json($activity->equipment ?? []);
     const initialPhotos = @json($activity->photos ?? []);
-    
+
     // ======================================================
     // DEKLARASI VARIABEL UTAMA
     // ======================================================
@@ -123,12 +123,19 @@ document.addEventListener('DOMContentLoaded', function() {
     const prevProgressSpan = document.getElementById('previous-progress-percent');
     const totalProgressSpan = document.getElementById('total-progress-percent');
     const overLimitWarning = document.getElementById('progress-over-limit-warning');
-    
+    // TAMBAHKAN: Deklarasi variabel yang hilang
+    const submitBtn = document.getElementById('submit-btn');
+    const errorDiv = document.createElement('div'); // Kita buat elemen error secara dinamis
+    errorDiv.id = 'validation-errors';
+    errorDiv.className = 'hidden bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4';
+    form.prepend(errorDiv);
+
+
     let totalContractVolume = 0;
     let totalContractWeighting = 0;
     let previousProgressVolume = 0;
     let currentInputType = 'volume';
-    
+
     // Variabel untuk Material
     const materialList = document.getElementById('material-list');
     const addMaterialBtn = document.getElementById('add-material-btn');
@@ -139,7 +146,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const equipmentList = document.getElementById('equipment-list');
     const addEquipmentBtn = document.getElementById('add-equipment-btn');
     let equipmentCounter = 0;
-    
+
     // Variabel untuk Foto
     const captureBtn = document.getElementById('capture-btn');
     const galleryBtn = document.getElementById('gallery-btn');
@@ -147,7 +154,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const photoPreviewContainer = document.getElementById('photo-preview-container');
     const deletedPhotosInput = document.getElementById('deleted_photos_input');
     let accumulatedFiles = [];
-    let deletedPhotoIds = [];
+    let deletedPhotoIds = []; // GANTI: Nama variabel agar lebih jelas
 
     // ======================================================
     // FUNGSI-FUNGSI
@@ -191,9 +198,10 @@ document.addEventListener('DOMContentLoaded', function() {
         accumulatedFiles.forEach((photo, index) => {
             const previewElement = document.createElement('div');
             previewElement.classList.add('flex', 'justify-between', 'items-center', 'text-xs', 'text-gray-600');
-            const fileName = photo.isNew ? photo.file.name : photo.file_path.split('/').pop();
+            // GANTI: Logika untuk membedakan file baru dan file lama
+            const fileName = photo.isNew ? photo.file.name : (photo.file_path ? photo.file_path.split('/').pop() : 'Foto Lama');
             const imageUrl = photo.isNew ? URL.createObjectURL(photo.file) : `/storage/${photo.file_path}`;
-            
+
             previewElement.innerHTML = `
                 <div class="flex items-center space-x-2">
                     <img src="${imageUrl}" alt="preview" class="h-8 w-8 object-cover rounded">
@@ -203,8 +211,14 @@ document.addEventListener('DOMContentLoaded', function() {
             `;
             photoPreviewContainer.appendChild(previewElement);
         });
+        updateDeletedPhotosInput();
     }
-    
+
+    // TAMBAHKAN: Fungsi untuk mengupdate input hidden deleted_photos
+    function updateDeletedPhotosInput() {
+        deletedPhotosInput.value = JSON.stringify(deletedPhotoIds);
+    }
+
     async function fetchProgressData() {
         const rabItemId = rabItemSelect.value;
         if (!rabItemId) { resetProgress(); return; }
@@ -215,9 +229,8 @@ document.addEventListener('DOMContentLoaded', function() {
             totalContractVolume = parseFloat(data.total_contract_volume) || 0;
             totalContractWeighting = parseFloat(data.total_contract_weighting) || 0;
             const totalReportedVolume = parseFloat(data.previous_progress_volume) || 0;
-            // Di halaman edit, progres sebelumnya adalah total progres dikurangi progres hari ini
             previousProgressVolume = totalReportedVolume - (parseFloat("{{ $activity->progress_volume }}") || 0);
-            
+
             contractVolumeSpan.textContent = `${totalContractVolume.toLocaleString('id-ID')} ${data.unit || ''}`;
             contractWeightingSpan.textContent = totalContractWeighting.toFixed(2);
             contractInfoDiv.classList.remove('hidden');
@@ -249,7 +262,7 @@ document.addEventListener('DOMContentLoaded', function() {
             totalProgressSpan.textContent = '0.00';
         }
     }
-    
+
     function resetProgress() {
         totalContractVolume = 0;
         totalContractWeighting = 0;
@@ -260,17 +273,16 @@ document.addEventListener('DOMContentLoaded', function() {
         progressInput.value = '';
         progressVolumeHidden.value = '';
     }
-    
+
     // ======================================================
     // LOGIKA KHUSUS UNTUK HALAMAN EDIT
     // ======================================================
-    
     fetchProgressData();
-    
+
     if (initialMaterials.length > 0) {
         initialMaterials.forEach(mat => addMaterialRow(mat.material_id, mat.quantity, mat.unit));
     } else { addMaterialRow(); }
-    
+
     if (initialEquipment.length > 0) {
         initialEquipment.forEach(eq => addEquipmentRow(eq.name, eq.quantity, eq.specification));
     } else { addEquipmentRow(); }
@@ -279,7 +291,7 @@ document.addEventListener('DOMContentLoaded', function() {
         accumulatedFiles = initialPhotos.map(photo => ({ isNew: false, ...photo }));
         renderPhotoPreview();
     }
-    
+
     // ======================================================
     // EVENT LISTENERS
     // ======================================================
@@ -299,7 +311,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
-    
+
     if (addEquipmentBtn) addEquipmentBtn.addEventListener('click', () => addEquipmentRow());
     if (equipmentList) {
         equipmentList.addEventListener('click', function(e) {
@@ -308,12 +320,39 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
-    
-    if(captureBtn) captureBtn.addEventListener('click', () => { /* ... */ });
-    if(galleryBtn) galleryBtn.addEventListener('click', () => { /* ... */ });
-    if(photoInput) photoInput.addEventListener('change', function(event) { /* ... */ });
-    if(photoPreviewContainer) photoPreviewContainer.addEventListener('click', function(e) { /* ... */ });
 
+    // TAMBAHKAN: Event listener untuk tombol kamera dan galeri
+    if(captureBtn) captureBtn.addEventListener('click', () => {
+        photoInput.setAttribute('capture', 'environment');
+        photoInput.click();
+    });
+    if(galleryBtn) galleryBtn.addEventListener('click', () => {
+        photoInput.removeAttribute('capture');
+        photoInput.click();
+    });
+    if(photoInput) photoInput.addEventListener('change', function(event) {
+        for (const file of event.target.files) {
+            accumulatedFiles.push({ isNew: true, file: file });
+        }
+        renderPhotoPreview();
+        event.target.value = ''; // Reset input file
+    });
+    if(photoPreviewContainer) photoPreviewContainer.addEventListener('click', function(e) {
+        if (e.target.classList.contains('remove-photo-btn')) {
+            const indexToRemove = parseInt(e.target.dataset.index, 10);
+            const photoToRemove = accumulatedFiles[indexToRemove];
+
+            // Jika bukan file baru (artinya dari database), catat ID-nya untuk dihapus
+            if (!photoToRemove.isNew && photoToRemove.id) {
+                deletedPhotoIds.push(photoToRemove.id);
+            }
+
+            accumulatedFiles.splice(indexToRemove, 1);
+            renderPhotoPreview();
+        }
+    });
+
+    // GANTI: Logika submit form dengan AJAX
     if (form) {
         form.addEventListener('submit', function(e) {
             e.preventDefault();
@@ -325,22 +364,25 @@ document.addEventListener('DOMContentLoaded', function() {
 
             const formData = new FormData(form);
 
-            // 1. Hapus input file default agar tidak konflik
+            // 1. Hapus input file default dan array foto lama
             formData.delete('photos[]');
+            formData.delete('deleted_photos');
 
-            // 2. Tambahkan file-file baru yang sudah diakumulasi
-            accumulatedFiles.forEach(file => {
-                formData.append('new_photos[]', file);
+
+            // 2. Tambahkan file-file BARU saja ke form data
+            accumulatedFiles.forEach(photo => {
+                if (photo.isNew) {
+                    formData.append('new_photos[]', photo.file);
+                }
             });
 
             // 3. Tambahkan ID foto yang akan dihapus
-            deletedPhotos.forEach(photoId => {
-                formData.append('deleted_photos[]', photoId);
-            });
-            
+            if (deletedPhotoIds.length > 0) {
+                 formData.append('deleted_photos', JSON.stringify(deletedPhotoIds));
+            }
+
             // 4. Set method untuk update
             formData.append('_method', 'PUT');
-
 
             fetch(form.action, {
                 method: 'POST', // Method harus POST untuk FormData dengan file
@@ -364,7 +406,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     errorHtml += '</ul>';
                     errorDiv.innerHTML = errorHtml;
                     errorDiv.classList.remove('hidden');
-                    
+
                     submitBtn.disabled = false;
                     submitBtn.textContent = 'Simpan Perubahan';
                 }
