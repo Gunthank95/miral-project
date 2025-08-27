@@ -136,26 +136,6 @@
 @push('scripts')
 <script src="https://cdn.dhtmlx.com/gantt/edge/dhtmlxgantt.js"></script>
 <script>
-	// Fungsi Alpine.js di luar agar bisa diakses
-	function schedulePageData() {
-		return {
-			isModalOpen: false,
-			isEditModalOpen: false,
-			editFormAction: '',
-			taskToEdit: { id: null, text: '', start_date_raw: '', end_date_raw: '' },
-			openEditModal(taskId) {
-				const task = gantt.getTask(taskId);
-				this.taskToEdit.id = task.id;
-				this.taskToEdit.text = task.text;
-				// Konversi format tanggal untuk input HTML
-				this.taskToEdit.start_date_raw = gantt.date.date_to_str("%Y-%m-%d")(task.start_date);
-				this.taskToEdit.end_date_raw = gantt.date.date_to_str("%Y-%m-%d")(gantt.calculateEndDate(task));
-				this.editFormAction = `/schedule/${task.id}`;
-				this.isEditModalOpen = true;
-			},
-		}
-	}
-	
     document.addEventListener('DOMContentLoaded', function() {
     const alpineEl = document.querySelector('[x-data]');
 
