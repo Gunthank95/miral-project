@@ -3,15 +3,10 @@
 @section('title', 'Jadwal Proyek')
 
 @push('styles')
-{{-- Library DHTMLX Gantt --}}
 <link href="https://cdn.dhtmlx.com/gantt/edge/dhtmlxgantt.css" rel="stylesheet">
 <style>
-    .gantt_delete_btn { 
-        cursor: pointer; color: #e53935; font-size: 16px; 
-        font-weight: bold; text-align: center; line-height: 28px;
-    }
+    .gantt_delete_btn { cursor: pointer; color: #e53935; font-size: 16px; font-weight: bold; text-align: center; line-height: 28px; }
     .gantt_task_grid .gantt_grid_head_cell { font-weight: 600; }
-    /* Ikon 'move' untuk drag handle akan muncul otomatis di kolom utama */
     .gantt_tree_content { cursor: move; }
 </style>
 @endpush
@@ -89,56 +84,40 @@
 
 @push('scripts')
 <script src="https://cdn.dhtmlx.com/gantt/edge/dhtmlxgantt.js"></script>
-
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const alpineEl = document.querySelector('[x-data]');
-
+    
+    // --- PERBAIKAN: KONFIGURASI KOLOM ---
     gantt.config.columns = [
-        {
-            name: "select", 
-            label: "<input type='checkbox' class='gantt_select_all'/>", 
-            width: 40, 
-            align: "center",
-            template: (task) => `<input type='checkbox' class='gantt_task_checkbox' data-id='${task.id}'>`
-        },
-        // PERBAIKAN: Kolom 'add' bawaan DHTMLX yang stabil untuk tombol aksi
-        {name: "add", label: "", width: 44},
-        {name: "text", label: "Task Name", tree: true, width: '*', resize: true},
-        {name: "start_date", label: "Start Date", align: "center", width: 90},
-        {name: "end_date", label: "End Date", align: "center", width: 90, 
-            template: (task) => {
-                if (!task.start_date) return '';
-                const endDate = gantt.calculateEndDate({start_date: task.start_date, duration: task.duration, task:task});
-                return gantt.templates.date_grid(endDate, task);
-            }
-        },
-        {name: "duration", label: "Duration", align: "center", width: 70},
+        { name: "select", label: "<input type='checkbox' class='gantt_select_all'/>", width: 40, align: "center", template: (task) => `<input type='checkbox' class='gantt_task_checkbox' data-id='${task.id}'>`},
+        { name: "text", label: "Task Name", tree: true, width: '*', resize: true },
+        { name: "start_date", label: "Start Date", align: "center", width: 90 },
+        { name: "duration", label: "Duration", align: "center", width: 70 },
+        { name: "add", label: "", width: 44 } // Kolom stabil untuk tombol aksi
     ];
 
+    // Mengubah ikon kolom 'add' menjadi ikon Hapus (✖)
     gantt.templates.grid_add = () => "<div class='gantt_delete_btn'>✖</div>";
+    
+    // Konfigurasi lainnya
     gantt.config.sort = false;
     gantt.config.order_branch = true;
     gantt.config.order_branch_free = true;
     gantt.config.date_format = "%d-%m-%Y";
-    gantt.config.grid_width = 700;
+    gantt.config.grid_width = 600;
     gantt.config.open_tree_initially = true;
 
     gantt.init("gantt_here");
+	
+	// --- EVENT HANDLERS ---
+    function updateSelectedCount() {
+        const count = document.querySelectorAll('.gantt_task_checkbox:checked').length;
+        if (alpineEl && alpineEl.__x) {
+            alpineEl.__x.setData({ selectedTaskCount: count });
+        }
+    }
     
-    gantt.attachEvent("onAfterTaskDrag", function(id, mode, e){
-        const order = gantt.getTaskByTime().map(task => task.id);
-        fetch('{{ route('schedule.update_order') }}', {
-            method: 'POST',
-            headers: {
-                'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                'Content-Type': 'application/json',
-                'Accept': 'application/json',
-            },
-            body: JSON.stringify({ order: order })
-        });
-    });
-
     function updateSelectedCount() {
         const count = document.querySelectorAll('.gantt_task_checkbox:checked').length;
         if (alpineEl && alpineEl.__x) {

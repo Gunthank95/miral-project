@@ -54,45 +54,49 @@ class ScheduleController extends Controller
     }
 
     public function importFromRab(Request $request, Package $package)
-    {
-        Schedule::where('package_id', $package->id)
-                ->whereNotNull('rab_item_id')
-                ->delete();
+	{
+		// 1. Hapus semua tugas LAMA yang berasal dari impor RAB di paket ini
+		Schedule::where('package_id', $package->id)
+				->whereNotNull('rab_item_id')
+				->delete();
 
-        $rabItems = RabItem::where('package_id', $package->id)->get();
+		// 2. Ambil semua item dari RAB untuk diimpor ulang
+		$rabItems = RabItem::where('package_id', $package->id)->get();
 
-        if ($rabItems->isEmpty()) {
-            return redirect()->route('schedule.index', $package->id)
-                ->with('success', 'Tidak ada item di RAB untuk diimpor.');
-        }
+		if ($rabItems->isEmpty()) {
+			return redirect()->route('schedule.index', $package->id)
+				->with('success', 'Tidak ada item di RAB untuk diimpor.');
+		}
 
-        $rabIdToScheduleIdMap = [];
-        $sortOrder = 0; // Inisialisasi urutan
+		$rabIdToScheduleIdMap = [];
+		$sortOrder = 0;
 
-        foreach ($rabItems as $item) {
-            $schedule = Schedule::create([
-                'package_id' => $package->id,
-                'rab_item_id' => $item->id,
-                'task_name' => $item->item_number . ' ' . $item->item_name,
-                'start_date' => now(),
-                'end_date' => now(),
-                'progress' => 0,
-                'sort_order' => $sortOrder++, // Tetapkan dan naikkan urutan
-            ]);
-            $rabIdToScheduleIdMap[$item->id] = $schedule->id;
-        }
+		// 3. Pass pertama: Buat semua jadwal baru
+		foreach ($rabItems as $item) {
+			$schedule = Schedule::create([
+				'package_id' => $package->id,
+				'rab_item_id' => $item->id,
+				'task_name' => $item->item_number . ' ' . $item->item_name,
+				'start_date' => now(),
+				'end_date' => now(),
+				'progress' => 0,
+				'sort_order' => $sortOrder++,
+			]);
+			$rabIdToScheduleIdMap[$item->id] = $schedule->id;
+		}
 
-        foreach ($rabItems as $item) {
-            if ($item->parent_id && isset($rabIdToScheduleIdMap[$item->id]) && isset($rabIdToScheduleIdMap[$item->parent_id])) {
-                $scheduleId = $rabIdToScheduleIdMap[$item->id];
-                $parentId = $rabIdToScheduleIdMap[$item->parent_id];
-                Schedule::where('id', $scheduleId)->update(['parent_id' => $parentId]);
-            }
-        }
+		// 4. Pass kedua: Update parent_id untuk mencocokkan struktur RAB
+		foreach ($rabItems as $item) {
+			if ($item->parent_id && isset($rabIdToScheduleIdMap[$item->id]) && isset($rabIdToScheduleIdMap[$item->parent_id])) {
+				$scheduleId = $rabIdToScheduleIdMap[$item->id];
+				$parentId = $rabIdToScheduleIdMap[$item->parent_id];
+				Schedule::where('id', $scheduleId)->update(['parent_id' => $parentId]);
+			}
+		}
 
-        return redirect()->route('schedule.index', $package->id)
-            ->with('success', $rabItems->count() . " tugas berhasil disinkronkan dari RAB.");
-    }
+		return redirect()->route('schedule.index', $package->id)
+			->with('success', $rabItems->count() . " tugas berhasil disinkronkan dari RAB.");
+	}
 
     public function destroy(Schedule $schedule)
     {
