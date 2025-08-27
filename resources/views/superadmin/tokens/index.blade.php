@@ -11,7 +11,8 @@
 
     {{-- Kolom Kanan: Konten Utama Halaman --}}
     <main class="md:w-3/4">
-        <div class="bg-white rounded shadow p-6">
+        {{-- Inisialisasi Alpine.js yang bersih --}}
+        <div class="bg-white rounded shadow p-6" x-data="{ copiedToken: null }">
             <div class="flex justify-between items-center mb-4">
                 <h1 class="text-xl font-semibold text-gray-800">Manajemen Token Registrasi</h1>
                 <form action="{{ route('superadmin.tokens.store') }}" method="POST">
@@ -28,37 +29,54 @@
 
             <div class="overflow-x-auto">
                 <table class="min-w-full text-sm">
-            <thead class="bg-gray-200">
-                <tr>
-                    <th class="text-left px-4 py-2">Token</th>
-                    <th class="text-left px-4 py-2">Status</th>
-                    <th class="text-left px-4 py-2">Email Pengguna</th>
-                    <th class="text-left px-4 py-2">Digunakan Pada</th>
-                </tr>
-            </thead>
-            <tbody>
-                @forelse ($tokens as $token)
-                    <tr class="border-t">
-                        <td class="px-4 py-2 font-mono">{{ $token->token }}</td>
-                        <td class="px-4 py-2">
-                            @if ($token->used_at)
-                                <span class="bg-green-200 text-green-800 text-xs font-semibold mr-2 px-2.5 py-0.5 rounded">Sudah Digunakan</span>
-                            @else
-                                <span class="bg-yellow-200 text-yellow-800 text-xs font-semibold mr-2 px-2.5 py-0.5 rounded">Tersedia</span>
-                            @endif
-                        </td>
-                        <td class="px-4 py-2">{{ $token->email ?? '-' }}</td>
-                        <td class="px-4 py-2">{{ $token->used_at ? $token->used_at->format('d M Y, H:i') : '-' }}</td>
-                    </tr>
-                @empty
-                    <tr>
-                        <td colspan="4" class="text-center p-4 text-gray-500">
-                            Belum ada token yang dibuat.
-                        </td>
-                    </tr>
-                @endforelse
-            </tbody>
-        </table>
+                    <thead class="bg-gray-200">
+                        <tr>
+                            <th class="text-left px-4 py-2">Token</th>
+                            <th class="text-left px-4 py-2">Status</th>
+                            <th class="text-left px-4 py-2">Email Pengguna</th>
+                            <th class="text-left px-4 py-2">Digunakan Pada</th>
+                            <th class="text-center px-4 py-2">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @forelse ($tokens as $token)
+                            <tr class="border-t">
+                                <td class="px-4 py-2 font-mono" id="token-{{ $token->id }}">{{ $token->token }}</td>
+                                <td class="px-4 py-2">
+                                    @if ($token->used_at)
+                                        <span class="bg-green-200 text-green-800 text-xs font-semibold mr-2 px-2.5 py-0.5 rounded">Sudah Digunakan</span>
+                                    @else
+                                        <span class="bg-yellow-200 text-yellow-800 text-xs font-semibold mr-2 px-2.5 py-0.5 rounded">Tersedia</span>
+                                    @endif
+                                </td>
+                                <td class="px-4 py-2">{{ $token->email ?? '-' }}</td>
+                                <td class="px-4 py-2">{{ $token->used_at ? $token->used_at->format('d M Y, H:i') : '-' }}</td>
+                                <td class="px-4 py-2 text-center">
+                                    {{-- Menggunakan metode modern navigator.clipboard --}}
+                                    <button 
+                                        x-on:click="
+                                            navigator.clipboard.writeText('{{ $token->token }}')
+                                                .then(() => {
+                                                    copiedToken = '{{ $token->token }}';
+                                                    setTimeout(() => copiedToken = null, 2000);
+                                                })
+                                                .catch(err => console.error('Gagal menyalin:', err));
+                                        "
+                                        class="bg-gray-200 text-gray-700 px-3 py-1 rounded-md text-xs hover:bg-gray-300 transition w-20">
+                                        <span x-show="copiedToken !== '{{ $token->token }}'">Copy</span>
+                                        <span x-show="copiedToken === '{{ $token->token }}'" class="text-green-600 font-bold">Tersalin!</span>
+                                    </button>
+                                </td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="5" class="text-center p-4 text-gray-500">
+                                    Belum ada token yang dibuat.
+                                </td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
             </div>
             <div class="mt-4">
                 {{ $tokens->links() }}
