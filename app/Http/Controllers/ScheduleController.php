@@ -53,15 +53,15 @@ class ScheduleController extends Controller
         return redirect()->route('schedule.index', $package->id)->with('success', 'Tugas baru berhasil ditambahkan.');
     }
 
-    public function importFromRab(Request $request, Package $package)
+	public function importFromRab(Request $request, Package $package)
 	{
-		// 1. Hapus semua tugas LAMA yang berasal dari impor RAB di paket ini
+		// 1. HAPUS semua tugas LAMA yang berasal dari impor RAB di paket ini
 		Schedule::where('package_id', $package->id)
 				->whereNotNull('rab_item_id')
 				->delete();
 
-		// 2. Ambil semua item dari RAB untuk diimpor ulang
-		$rabItems = RabItem::where('package_id', $package->id)->get();
+		// 2. Ambil semua item dari RAB untuk diimpor ulang, urutkan berdasarkan ID
+		$rabItems = RabItem::where('package_id', $package->id)->orderBy('id')->get();
 
 		if ($rabItems->isEmpty()) {
 			return redirect()->route('schedule.index', $package->id)
@@ -69,7 +69,7 @@ class ScheduleController extends Controller
 		}
 
 		$rabIdToScheduleIdMap = [];
-		$sortOrder = 0;
+		$sortOrder = 0; // Inisialisasi urutan
 
 		// 3. Pass pertama: Buat semua jadwal baru
 		foreach ($rabItems as $item) {
@@ -80,7 +80,7 @@ class ScheduleController extends Controller
 				'start_date' => now(),
 				'end_date' => now(),
 				'progress' => 0,
-				'sort_order' => $sortOrder++,
+				'sort_order' => $sortOrder++, // Tetapkan dan naikkan urutan
 			]);
 			$rabIdToScheduleIdMap[$item->id] = $schedule->id;
 		}
@@ -97,7 +97,21 @@ class ScheduleController extends Controller
 		return redirect()->route('schedule.index', $package->id)
 			->with('success', $rabItems->count() . " tugas berhasil disinkronkan dari RAB.");
 	}
+	
+	// TAMBAHKAN
+	public function update(Request $request, Schedule $schedule)
+	{
+		$validated = $request->validate([
+			'task_name' => 'required|string|max:255',
+			'start_date' => 'required|date',
+			'end_date' => 'required|date|after_or_equal:start_date',
+		]);
 
+		$schedule->update($validated);
+
+		return redirect()->back()->with('success', 'Tugas berhasil diperbarui.');
+	}
+	
     public function destroy(Schedule $schedule)
     {
         $schedule->delete();

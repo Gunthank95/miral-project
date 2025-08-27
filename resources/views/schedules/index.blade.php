@@ -6,18 +6,33 @@
 {{-- Library DHTMLX Gantt --}}
 <link href="https://cdn.dhtmlx.com/gantt/edge/dhtmlxgantt.css" rel="stylesheet">
 <style>
-    .gantt_delete_btn { 
-        cursor: pointer; color: #e53935; font-size: 16px; 
-        font-weight: bold; text-align: center; line-height: 28px;
-    }
+    .gantt_delete_btn, .gantt_edit_btn { cursor: pointer; text-align: center; width: 100%; }
+    .gantt_delete_btn { font-size: 18px; color: #e53935; }
+    .gantt_edit_btn { font-size: 15px; color: #f59e0b; }
     .gantt_task_grid .gantt_grid_head_cell { font-weight: 600; }
-    /* Ikon 'move' untuk drag handle akan muncul otomatis di kolom utama */
     .gantt_tree_content { cursor: move; }
 </style>
 @endpush
 
 @section('content')
-<div class="p-4 sm:p-6" x-data="{ isModalOpen: false, selectedTaskCount: 0 }">
+{{-- PERBAIKAN: Inisialisasi Alpine.js langsung dengan objek, bukan fungsi --}}
+<div class="p-4 sm:p-6" x-data="{
+    isModalOpen: false,
+    isEditModalOpen: false,
+    selectedTasks: [],
+    editFormAction: '',
+    taskToEdit: { id: null, text: '', start_date_raw: '', end_date_raw: '' },
+    openEditModal(taskId) {
+        const task = gantt.getTask(taskId);
+        if (!task) return;
+        this.taskToEdit.id = task.id;
+        this.taskToEdit.text = task.text;
+        this.taskToEdit.start_date_raw = gantt.date.date_to_str('%Y-%m-%d')(task.start_date);
+        this.taskToEdit.end_date_raw = gantt.date.date_to_str('%Y-%m-%d')(gantt.calculateEndDate(task));
+        this.editFormAction = `/schedule/${task.id}`;
+        this.isEditModalOpen = true;
+    }
+}">
     <main class="flex-1">
         <header class="bg-white shadow p-4 rounded-lg mb-6">
             <div class="flex flex-wrap justify-between items-center gap-4">
@@ -28,9 +43,9 @@
                     </p>
                 </div>
                 <div class="flex space-x-2 items-center">
-                    <div x-show="selectedTaskCount > 0" x-cloak>
+                    <div x-show="selectedTasks.length > 0" x-cloak>
                         <button id="batch-delete-btn" class="bg-red-600 text-white px-4 py-2 rounded text-sm hover:bg-red-700">
-                            Hapus (<span x-text="selectedTaskCount"></span>) Item
+                            Hapus (<span x-text="selectedTasks.length"></span>) Item
                         </button>
                     </div>
                     <form action="{{ route('schedule.import_from_rab', $package->id) }}" method="POST" onsubmit="return confirm('Anda yakin? Ini akan menghapus jadwal lama (yang berasal dari RAB) dan mengimpor ulang sesuai RAB terbaru.');">
@@ -57,7 +72,7 @@
         </div>
     </main>
 
-    {{-- Modal Tambah Tugas (Tidak ada perubahan) --}}
+    {{-- Modal Tambah Tugas --}}
     <div x-show="isModalOpen" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center" x-cloak>
         <div @click.away="isModalOpen = false" class="relative mx-auto p-5 border w-full max-w-lg shadow-lg rounded-md bg-white">
             <form action="{{ route('schedule.store', $package->id) }}" method="POST" class="space-y-4">
@@ -84,13 +99,64 @@
             </form>
         </div>
     </div>
+	
+	{{-- Modal Edit Tugas --}}
+    <div x-show="isEditModalOpen" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center" x-cloak>
+        <div @click.away="isEditModalOpen = false" class="relative mx-auto p-5 border w-full max-w-lg shadow-lg rounded-md bg-white">
+            <div class="mt-3">
+                <h3 class="text-lg leading-6 font-medium text-gray-900 border-b pb-2 mb-4">Edit Tugas</h3>
+                <form :action="editFormAction" method="POST" class="space-y-4">
+                    @csrf
+                    @method('PUT')
+                    <div>
+                        <label for="edit_task_name" class="block text-sm font-medium text-gray-700">Nama Tugas</label>
+                        <input type="text" name="task_name" id="edit_task_name" x-model="taskToEdit.text" required class="mt-1 w-full border rounded px-3 py-2">
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label for="edit_start_date" class="block text-sm font-medium text-gray-700">Tanggal Mulai</label>
+                            <input type="date" name="start_date" id="edit_start_date" x-model="taskToEdit.start_date_raw" required class="mt-1 w-full border rounded px-3 py-2">
+                        </div>
+                        <div>
+                            <label for="edit_end_date" class="block text-sm font-medium text-gray-700">Tanggal Selesai</label>
+                            <input type="date" name="end_date" id="edit_end_date" x-model="taskToEdit.end_date_raw" required class="mt-1 w-full border rounded px-3 py-2">
+                        </div>
+                    </div>
+                    <div class="pt-4 flex justify-end space-x-2 border-t">
+                        <button type="button" @click="isEditModalOpen = false" class="bg-gray-200 text-gray-800 px-4 py-2 rounded text-sm hover:bg-gray-300">Batal</button>
+                        <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700">Simpan Perubahan</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
 </div>
 @endsection
 
 @push('scripts')
 <script src="https://cdn.dhtmlx.com/gantt/edge/dhtmlxgantt.js"></script>
 <script>
-document.addEventListener('DOMContentLoaded', function() {
+	// Fungsi Alpine.js di luar agar bisa diakses
+	function schedulePageData() {
+		return {
+			isModalOpen: false,
+			isEditModalOpen: false,
+			editFormAction: '',
+			taskToEdit: { id: null, text: '', start_date_raw: '', end_date_raw: '' },
+			openEditModal(taskId) {
+				const task = gantt.getTask(taskId);
+				this.taskToEdit.id = task.id;
+				this.taskToEdit.text = task.text;
+				// Konversi format tanggal untuk input HTML
+				this.taskToEdit.start_date_raw = gantt.date.date_to_str("%Y-%m-%d")(task.start_date);
+				this.taskToEdit.end_date_raw = gantt.date.date_to_str("%Y-%m-%d")(gantt.calculateEndDate(task));
+				this.editFormAction = `/schedule/${task.id}`;
+				this.isEditModalOpen = true;
+			},
+		}
+	}
+	
+    document.addEventListener('DOMContentLoaded', function() {
     const alpineEl = document.querySelector('[x-data]');
 
     // --- PERBAIKAN: KONFIGURASI KOLOM ---
@@ -98,58 +164,61 @@ document.addEventListener('DOMContentLoaded', function() {
         {name: "select", label: "<input type='checkbox' class='gantt_select_all'/>", width: 40, align: "center", 
             template: (task) => `<input type='checkbox' class='gantt_task_checkbox' data-id='${task.id}'>`
         },
-        // Kolom 'add' bawaan DHTMLX untuk tombol aksi
-        {name: "add", label: "", width: 44}, 
         {name: "text", label: "Task Name", tree: true, width: '*', resize: true},
         {name: "start_date", label: "Start Date", align: "center", width: 90},
         {name: "duration", label: "Duration", align: "center", width: 70},
+        // PERBAIKAN: Kolom Aksi sekarang digabung
+        {name: "actions", label: "Actions", width: 80, align: "center", 
+            template: (task) => {
+                const editBtn = `<span class='gantt_edit_btn' data-id='${task.id}'>✏️</span>`;
+                const deleteBtn = `<span class='gantt_delete_btn' data-id='${task.id}'>✖</span>`;
+                return `${editBtn} &nbsp; ${deleteBtn}`;
+            }
+        },
     ];
 
-    // Mengubah ikon kolom 'add' menjadi ikon Hapus (✖)
-    gantt.templates.grid_add = () => "<div class='gantt_delete_btn'>✖</div>";
-    
-    // Konfigurasi lainnya
     gantt.config.sort = false;
     gantt.config.order_branch = true;
     gantt.config.order_branch_free = true;
     gantt.config.date_format = "%d-%m-%Y";
-    gantt.config.grid_width = 600;
+    gantt.config.grid_width = 700;
     gantt.config.open_tree_initially = true;
 
     gantt.init("gantt_here");
     
-    // --- EVENT HANDLERS ---
-    
-    // Event setelah pengguna selesai menggeser (drag) tugas untuk mengubah urutan
+    // --- EVENT HANDLERS (Logika Interaksi) ---
+	// TAMBAHKAN: Listener untuk event dari tombol edit
+        window.addEventListener('open-edit-modal', (event) => {
+            alpineComponent.getUnwrappedData().openEditModal(event.detail);
+        });
+	    
+    // Event setelah pengguna selesai menggeser (drag) tugas
     gantt.attachEvent("onAfterTaskDrag", function(id, mode, e){
         const order = gantt.getTaskByTime().map(task => task.id);
         fetch('{{ route('schedule.update_order') }}', {
             method: 'POST',
             headers: {
-                'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                'Content-Type': 'application/json',
-                'Accept': 'application/json',
+                'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Content-Type': 'application/json', 'Accept': 'application/json',
             },
             body: JSON.stringify({ order: order })
         });
     });
 
-    // Fungsi untuk mengupdate hitungan item yang terpilih di tombol hapus massal
+    // Fungsi untuk mengupdate hitungan item yang terpilih
     function updateSelectedCount() {
         const count = document.querySelectorAll('.gantt_task_checkbox:checked').length;
-        // PERBAIKAN: Cara aman untuk mengubah data Alpine.js
         if (alpineEl && alpineEl.__x) {
             alpineEl.__x.setData({ selectedTaskCount: count });
         }
     }
 
-    // Event handler untuk semua klik di dalam area grid
+    // Event untuk semua klik di dalam grid
     gantt.attachEvent("onTaskClick", function (id, e) {
         const target = e.target;
+        // Logika untuk tombol hapus tunggal (ikon ✖)
         if (target.classList.contains("gantt_delete_btn")) {
             gantt.confirm({
-                title: "Konfirmasi Hapus",
-                text: "Anda yakin ingin menghapus tugas ini?",
+                title: "Konfirmasi Hapus", text: "Anda yakin ingin menghapus tugas ini?",
                 ok: "Hapus", cancel: "Batal",
                 callback: function (result) {
                     if (result) {
@@ -157,7 +226,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         fetch('/schedule/' + taskId, {
                             method: 'DELETE',
                             headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Accept': 'application/json' }
-                        }).then(response => response.json()).then(data => {
+                        }).then(r => r.json()).then(data => {
                             if (data.status === 'success') {
                                 gantt.deleteTask(taskId);
                                 updateSelectedCount();
@@ -167,13 +236,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             });
         } 
+        // Logika untuk checkbox
         else if (target.classList.contains('gantt_task_checkbox')) {
             setTimeout(updateSelectedCount, 50);
         }
         return true;
     });
 
-    // Event handler untuk klik checkbox "pilih semua" di header
+    // Event untuk checkbox "pilih semua"
     gantt.attachEvent("onGridHeaderCheckboxClick", function(name, e){
         if (name === 'select') {
             const checkboxes = document.querySelectorAll('.gantt_task_checkbox');
@@ -182,7 +252,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
     
-    // Event handler untuk tombol hapus massal
+    // Event untuk tombol "Hapus (x) Item"
     document.getElementById('batch-delete-btn').addEventListener('click', function() {
         const checked = document.querySelectorAll('.gantt_task_checkbox:checked');
         const idsToDelete = Array.from(checked).map(cb => cb.dataset.id);
@@ -204,13 +274,10 @@ document.addEventListener('DOMContentLoaded', function() {
                         },
                         body: JSON.stringify({ ids: idsToDelete })
                     })
-                    .then(response => response.json())
-                    .then(data => {
+                    .then(r => r.json()).then(data => {
                         if (data.status === 'success') {
                             gantt.batchUpdate(() => {
-                                idsToDelete.forEach(id => {
-                                    if(gantt.isTaskExists(id)) gantt.deleteTask(id);
-                                });
+                                idsToDelete.forEach(id => { if(gantt.isTaskExists(id)) gantt.deleteTask(id); });
                             });
                             updateSelectedCount();
                         } else { gantt.alert("Gagal menghapus tugas."); }

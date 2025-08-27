@@ -87,6 +87,7 @@ Route::middleware('auth')->group(function () {
 	// TAMBAHKAN ROUTE BARU INI UNTUK SCHEDULE
     Route::get('/package/{package}/schedule', [\App\Http\Controllers\ScheduleController::class, 'index'])->name('schedule.index');
 	Route::post('/package/{package}/schedule', [\App\Http\Controllers\ScheduleController::class, 'store'])->name('schedule.store');
+	Route::put('/schedule/{schedule}', [\App\Http\Controllers\ScheduleController::class, 'update'])->name('schedule.update');
 	Route::post('/package/{package}/schedule/import-from-rab', [\App\Http\Controllers\ScheduleController::class, 'importFromRab'])->name('schedule.import_from_rab');
 	Route::delete('/schedule/{schedule}', [\App\Http\Controllers\ScheduleController::class, 'destroy'])->name('schedule.destroy');
 	Route::post('/schedule/batch-delete', [\App\Http\Controllers\ScheduleController::class, 'batchDestroy'])->name('schedule.batch_delete');
