@@ -7,6 +7,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
 	<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <link href="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/css/tom-select.css" rel="stylesheet">
+	@stack('styles')
 </head>
 <body class="bg-gray-100">
     <div id="app">
@@ -74,7 +75,8 @@
 	
 	{{-- JavaScript untuk Tom Select DITAMBAHKAN DI SINI --}}
     <script src="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/js/tom-select.complete.min.js"></script>
-    @stack('scripts')
+	
+	@stack('scripts')
 
     {{-- SCRIPT UNTUK SIDEBAR TOGGLE --}}
     <script>

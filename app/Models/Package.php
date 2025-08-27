@@ -42,4 +42,14 @@ class Package extends Model
     }
 	
 	protected $fillable = ['project_id', 'name'];
+	
+	// TAMBAHKAN FUNGSI BARU DI SINI
+    /**
+     * Get all of the schedules for the Package
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\HasMany
+     */public function schedules()
+    {
+        return $this->hasMany(Schedule::class);
+    }
 }

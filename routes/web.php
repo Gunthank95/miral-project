@@ -84,6 +84,14 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/project/{project}/data-proyek', [\App\Http\Controllers\ProjectDataController::class, 'show'])->name('projects.data-proyek');
 	
+	// TAMBAHKAN ROUTE BARU INI UNTUK SCHEDULE
+    Route::get('/package/{package}/schedule', [\App\Http\Controllers\ScheduleController::class, 'index'])->name('schedule.index');
+	Route::post('/package/{package}/schedule', [\App\Http\Controllers\ScheduleController::class, 'store'])->name('schedule.store');
+	Route::post('/package/{package}/schedule/import-from-rab', [\App\Http\Controllers\ScheduleController::class, 'importFromRab'])->name('schedule.import_from_rab');
+	Route::delete('/schedule/{schedule}', [\App\Http\Controllers\ScheduleController::class, 'destroy'])->name('schedule.destroy');
+	Route::post('/schedule/batch-delete', [\App\Http\Controllers\ScheduleController::class, 'batchDestroy'])->name('schedule.batch_delete');
+	Route::post('/schedule/update-order', [\App\Http\Controllers\ScheduleController::class, 'updateOrder'])->name('schedule.update_order');
+	
 	// TAMBAHKAN: Rute untuk menampilkan form edit dan memproses update data proyek
     Route::get('/project/{project}/edit-data', [\App\Http\Controllers\ProjectDataController::class, 'edit'])->name('projects.edit-data');
     Route::patch('/project/{project}/update-data', [\App\Http\Controllers\ProjectDataController::class, 'update'])->name('projects.update-data');

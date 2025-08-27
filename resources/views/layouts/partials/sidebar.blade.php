@@ -18,6 +18,11 @@
                 <a href="{{ route('periodic_reports.index', $package->id ?? $activeProject->id) }}" class="block px-4 py-2 text-sm rounded {{ request()->routeIs('periodic_reports.index') ? 'bg-blue-500 text-white' : 'text-gray-600 hover:bg-gray-100' }}">
                     Laporan Periodik
                 </a>
+				
+				<a href="{{ route('schedule.index', $package->id ?? $activeProject->id) }}" class="block px-4 py-2 text-sm rounded {{ request()->routeIs('schedule.index') ? 'bg-blue-500 text-white' : 'text-gray-600 hover:bg-gray-100' }}">
+					Jadwal Proyek
+				</a>
+
                 {{-- TAMBAHKAN: Pindahkan menu Dokumen & RAB ke sini agar lebih relevan --}}
                 <a href="{{ route('rab.index', $package->id ?? $activeProject->id) }}" class="block px-4 py-2 text-sm rounded {{ request()->routeIs('rab.index') ? 'bg-blue-500 text-white' : 'text-gray-600 hover:bg-gray-100' }}">
                     RAB (Rencana Anggaran Biaya)
