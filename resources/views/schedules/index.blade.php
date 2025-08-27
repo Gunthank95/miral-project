@@ -3,10 +3,15 @@
 @section('title', 'Jadwal Proyek')
 
 @push('styles')
+{{-- Library DHTMLX Gantt --}}
 <link href="https://cdn.dhtmlx.com/gantt/edge/dhtmlxgantt.css" rel="stylesheet">
 <style>
-    .gantt_delete_btn { cursor: pointer; color: #e53935; font-size: 16px; font-weight: bold; text-align: center; line-height: 28px; }
+    .gantt_delete_btn { 
+        cursor: pointer; color: #e53935; font-size: 16px; 
+        font-weight: bold; text-align: center; line-height: 28px;
+    }
     .gantt_task_grid .gantt_grid_head_cell { font-weight: 600; }
+    /* Ikon 'move' untuk drag handle akan muncul otomatis di kolom utama */
     .gantt_tree_content { cursor: move; }
 </style>
 @endpush
@@ -87,14 +92,17 @@
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const alpineEl = document.querySelector('[x-data]');
-    
+
     // --- PERBAIKAN: KONFIGURASI KOLOM ---
     gantt.config.columns = [
-        { name: "select", label: "<input type='checkbox' class='gantt_select_all'/>", width: 40, align: "center", template: (task) => `<input type='checkbox' class='gantt_task_checkbox' data-id='${task.id}'>`},
-        { name: "text", label: "Task Name", tree: true, width: '*', resize: true },
-        { name: "start_date", label: "Start Date", align: "center", width: 90 },
-        { name: "duration", label: "Duration", align: "center", width: 70 },
-        { name: "add", label: "", width: 44 } // Kolom stabil untuk tombol aksi
+        {name: "select", label: "<input type='checkbox' class='gantt_select_all'/>", width: 40, align: "center", 
+            template: (task) => `<input type='checkbox' class='gantt_task_checkbox' data-id='${task.id}'>`
+        },
+        // Kolom 'add' bawaan DHTMLX untuk tombol aksi
+        {name: "add", label: "", width: 44}, 
+        {name: "text", label: "Task Name", tree: true, width: '*', resize: true},
+        {name: "start_date", label: "Start Date", align: "center", width: 90},
+        {name: "duration", label: "Duration", align: "center", width: 70},
     ];
 
     // Mengubah ikon kolom 'add' menjadi ikon Hapus (✖)
@@ -109,22 +117,33 @@ document.addEventListener('DOMContentLoaded', function() {
     gantt.config.open_tree_initially = true;
 
     gantt.init("gantt_here");
-	
-	// --- EVENT HANDLERS ---
-    function updateSelectedCount() {
-        const count = document.querySelectorAll('.gantt_task_checkbox:checked').length;
-        if (alpineEl && alpineEl.__x) {
-            alpineEl.__x.setData({ selectedTaskCount: count });
-        }
-    }
     
+    // --- EVENT HANDLERS ---
+    
+    // Event setelah pengguna selesai menggeser (drag) tugas untuk mengubah urutan
+    gantt.attachEvent("onAfterTaskDrag", function(id, mode, e){
+        const order = gantt.getTaskByTime().map(task => task.id);
+        fetch('{{ route('schedule.update_order') }}', {
+            method: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+            },
+            body: JSON.stringify({ order: order })
+        });
+    });
+
+    // Fungsi untuk mengupdate hitungan item yang terpilih di tombol hapus massal
     function updateSelectedCount() {
         const count = document.querySelectorAll('.gantt_task_checkbox:checked').length;
+        // PERBAIKAN: Cara aman untuk mengubah data Alpine.js
         if (alpineEl && alpineEl.__x) {
             alpineEl.__x.setData({ selectedTaskCount: count });
         }
     }
 
+    // Event handler untuk semua klik di dalam area grid
     gantt.attachEvent("onTaskClick", function (id, e) {
         const target = e.target;
         if (target.classList.contains("gantt_delete_btn")) {
@@ -154,6 +173,7 @@ document.addEventListener('DOMContentLoaded', function() {
         return true;
     });
 
+    // Event handler untuk klik checkbox "pilih semua" di header
     gantt.attachEvent("onGridHeaderCheckboxClick", function(name, e){
         if (name === 'select') {
             const checkboxes = document.querySelectorAll('.gantt_task_checkbox');
@@ -162,6 +182,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
     
+    // Event handler untuk tombol hapus massal
     document.getElementById('batch-delete-btn').addEventListener('click', function() {
         const checked = document.querySelectorAll('.gantt_task_checkbox:checked');
         const idsToDelete = Array.from(checked).map(cb => cb.dataset.id);
