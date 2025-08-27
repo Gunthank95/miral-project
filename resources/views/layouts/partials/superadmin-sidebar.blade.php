@@ -1,7 +1,7 @@
 <div class="bg-white rounded shadow p-4">
     <nav class="space-y-2" x-data="{ dataMasterOpen: {{ request()->routeIs('superadmin.materials.*') || request()->routeIs('superadmin.work-items.*') ? 'true' : 'false' }} }">
         <a href="{{ route('superadmin.dashboard') }}"
-           class="block px-4 py-2 text-sm rounded {{ request()->routeIs('superadmin.dashboard') ? 'bg-blue-500 text-white' : 'text-gray-600 hover:bg-gray-100' }}">
+           class="block px-4 py-2 text-sm rounded {{ request()->routeIs('superadmin.dashboard') ? 'bg-blue-500 text-white' : 'text-gray-700 hover:bg-gray-100' }}">
             Dashboard
         </a>
         <a href="{{ route('superadmin.tokens.index') }}"

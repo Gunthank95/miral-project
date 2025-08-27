@@ -119,4 +119,28 @@ class MasterDataController extends Controller
         $need->delete();
         return back()->with('success', 'Material berhasil dihapus dari daftar.');
     }
+	
+    // TAMBAHKAN FUNGSI BARU INI UNTUK MENYIMPAN PERUBAHAN
+    public function materialsUpdate(Request $request, Material $material)
+    {
+        $request->validate([
+            'name' => 'required|string|max:255',
+            'unit' => 'required|string|max:50',
+        ]);
+
+        $material->update($request->all());
+
+        return redirect()->route('superadmin.materials.index')->with('success', 'Material berhasil diperbarui.');
+    }
+
+    // TAMBAHKAN FUNGSI BARU INI UNTUK MENGHAPUS DATA
+    public function materialsDestroy(Material $material)
+    {
+        try {
+            $material->delete();
+            return redirect()->route('superadmin.materials.index')->with('success', 'Material berhasil dihapus.');
+        } catch (\Exception $e) {
+            return redirect()->route('superadmin.materials.index')->with('error', 'Gagal menghapus material karena masih digunakan di data lain.');
+        }
+    }
 }

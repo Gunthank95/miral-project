@@ -53,13 +53,19 @@ Route::post('/projects', [ProjectRegistrationController::class, 'store'])->name(
 
 // --- ROUTE UNTUK SUPER ADMIN (Perlu Login & Peran Super Admin) ---
 Route::prefix('superadmin')->middleware(['auth', 'super.admin'])->name('superadmin.')->group(function () {
+    // Rute Super Admin yang sudah ada
     Route::get('/dashboard', [SuperAdminController::class, 'dashboard'])->name('dashboard');
     Route::get('/registration-tokens', [SuperAdminController::class, 'tokensIndex'])->name('tokens.index');
     Route::post('/registration-tokens', [SuperAdminController::class, 'tokensStore'])->name('tokens.store');
 
-    // Rute untuk Data Master sekarang ada di sini
+    // Rute untuk Data Master
     Route::get('/materials', [MasterDataController::class, 'materialsIndex'])->name('materials.index');
     Route::post('/materials', [MasterDataController::class, 'materialsStore'])->name('materials.store');
+    
+    // TAMBAHKAN: Route baru untuk Edit, Update, dan Hapus Material
+    Route::put('/materials/{material}', [MasterDataController::class, 'materialsUpdate'])->name('materials.update');
+    Route::delete('/materials/{material}', [MasterDataController::class, 'materialsDestroy'])->name('materials.destroy');
+
     Route::post('/materials/modal-store', [MasterDataController::class, 'materialsStoreModal'])->name('materials.store.modal');
     Route::get('/work-items', [MasterDataController::class, 'workItemsIndex'])->name('work-items.index');
     Route::post('/work-items', [MasterDataController::class, 'workItemsStore'])->name('work-items.store');
