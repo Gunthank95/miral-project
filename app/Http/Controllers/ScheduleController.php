@@ -167,4 +167,31 @@ class ScheduleController extends Controller
             if ($parent->parent_id) $this->updateParentDates($parent->parent_id);
         }
     }
+	
+	public function getScheduleData(Package $package)
+    {
+        $tasks_from_db = Schedule::where('package_id', $package->id)->orderBy('sort_order')->get();
+
+        $tasks = $tasks_from_db->map(function ($task) {
+            $startDate = Carbon::parse($task->start_date);
+            $endDate = Carbon::parse($task->end_date);
+            $duration = $startDate->diffInDays($endDate);
+
+            return [
+                'id' => $task->id,
+                'text' => $task->task_name,
+                'start_date' => $startDate->format('Y-m-d'), // Format untuk gantt.load
+                'duration' => $duration > 0 ? $duration : 1,
+                'progress' => $task->progress / 100,
+                'parent' => (int) $task->parent_id,
+                'open' => true,
+            ];
+        });
+
+        // DHTMLX Gantt API load() mengharapkan format ini
+        return response()->json([
+            "data" => $tasks,
+            "links" => []
+        ]);
+    }
 }

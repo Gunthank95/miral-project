@@ -97,12 +97,9 @@
 
 @push('scripts')
 <script src="https://cdn.dhtmlx.com/gantt/edge/dhtmlxgantt.js"></script>
-
-{{-- Mengambil data dari controller dan menyiapkannya untuk JavaScript --}}
 <script>
     const ganttTasksData = {!! $tasks_data !!};
 </script>
-
 <script>
 document.addEventListener('alpine:init', () => {
     Alpine.data('schedulePage', () => ({
@@ -231,6 +228,51 @@ document.addEventListener('alpine:init', () => {
                     headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Content-Type': 'application/json' },
                     body: JSON.stringify({ order: tasks })
                 }).catch(err => gantt.alert('Gagal menyimpan urutan.'));
+            });
+			
+			// Fungsi helper untuk mengirim update ke server
+            const updateTaskOnServer = (id) => {
+                const task = gantt.getTask(id);
+                // Format tanggal agar sesuai dengan yang diharapkan backend (YYYY-MM-DD)
+                const startDateStr = gantt.date.date_to_str("%Y-%m-%d")(task.start_date);
+                const endDateStr = gantt.date.date_to_str("%Y-%m-%d")(task.end_date);
+
+                const taskData = {
+                    task_name: task.text,
+                    start_date: startDateStr,
+                    end_date: endDateStr,
+                };
+                
+                fetch(`/schedule/${id}`, {
+                    method: 'PUT',
+                    headers: {
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify(taskData)
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        // Muat ulang data untuk menampilkan update pada parent
+                        // Ini cara termudah untuk memastikan semua data konsisten
+                        gantt.clearAll();
+                        gantt.load('/api/schedule-data/{{ $package->id }}'); // Kita perlu membuat route API ini
+                    }
+                }).catch(error => {
+                    gantt.alert("Gagal menyimpan perubahan ke server.");
+                });
+            };
+
+			// 1. Pemicu setelah edit via Lightbox (dobel klik)
+            gantt.attachEvent("onAfterTaskUpdate", function(id, item){
+                updateTaskOnServer(id);
+            });
+
+            // 2. Pemicu setelah menggeser atau mengubah ukuran bar
+            gantt.attachEvent("onAfterTaskDrag", function(id, mode, e){
+                updateTaskOnServer(id);
             });
         }
     }));
