@@ -6,6 +6,7 @@ use App\Models\Package;
 use App\Models\RabItem;
 use App\Models\Schedule;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class ScheduleController extends Controller
 {
@@ -16,7 +17,7 @@ class ScheduleController extends Controller
         $tasks = $tasks_from_db->map(function ($task) {
             $startDate = \Carbon\Carbon::parse($task->start_date);
             $endDate = \Carbon\Carbon::parse($task->end_date);
-            $duration = $startDate->diffInDays($endDate);
+            $duration = $startDate->diffInDays($endDate) + 1;
 
             return [
                 'id' => $task->id,
@@ -24,11 +25,12 @@ class ScheduleController extends Controller
                 'start_date' => $startDate->format('d-m-Y'),
                 'duration' => $duration,
                 'progress' => $task->progress / 100,
-                'parent' => $task->parent_id,
+                'parent' => (int) $task->parent_id,
+                'open' => true,
             ];
         });
 
-        $links = []; // Untuk predecessor nanti
+        $links = [];
 
         return view('schedules.index', [
             'package' => $package,
@@ -49,56 +51,36 @@ class ScheduleController extends Controller
 
         $package->schedules()->create($validated);
 
-        return redirect()->route('schedule.index', $package->id)->with('success', 'Tugas baru berhasil ditambahkan.');
+        return redirect()->route('schedule.index', $package->id)->with('success', 'New task added successfully.');
     }
 
-    // GANTI: Logika impor diperbaiki
     public function importFromRab(Request $request, Package $package)
     {
-        // 1. HAPUS semua tugas LAMA yang berasal dari impor RAB di paket ini
-        Schedule::where('package_id', $package->id)
-                ->whereNotNull('rab_item_id')
-                ->delete();
+        DB::transaction(function () use ($package) {
+            Schedule::where('package_id', $package->id)->whereNotNull('rab_item_id')->delete();
+            $rabItems = RabItem::where('package_id', $package->id)->orderBy('id')->get();
+            if ($rabItems->isEmpty()) { return; }
 
-        // 2. Ambil semua item dari RAB untuk diimpor ulang, urutkan berdasarkan ID
-        $rabItems = RabItem::where('package_id', $package->id)->orderBy('id')->get();
-
-        if ($rabItems->isEmpty()) {
-            return redirect()->route('schedule.index', $package->id)
-                ->with('success', 'Tidak ada item di RAB untuk diimpor.');
-        }
-
-        $rabIdToScheduleIdMap = [];
-        $sortOrder = 0; // Inisialisasi urutan
-
-        // 3. Pass pertama: Buat semua jadwal baru
-        foreach ($rabItems as $item) {
-            $schedule = Schedule::create([
-                'package_id' => $package->id,
-                'rab_item_id' => $item->id,
-                'task_name' => $item->item_number . ' ' . $item->item_name,
-                'start_date' => now(),
-                'end_date' => now(),
-                'progress' => 0,
-                'sort_order' => $sortOrder++, // Tetapkan dan naikkan urutan
-            ]);
-            $rabIdToScheduleIdMap[$item->id] = $schedule->id;
-        }
-
-        // 4. Pass kedua: Update parent_id untuk mencocokkan struktur RAB
-        foreach ($rabItems as $item) {
-            if ($item->parent_id && isset($rabIdToScheduleIdMap[$item->id]) && isset($rabIdToScheduleIdMap[$item->parent_id])) {
-                $scheduleId = $rabIdToScheduleIdMap[$item->id];
-                $parentId = $rabIdToScheduleIdMap[$item->parent_id];
-                Schedule::where('id', $scheduleId)->update(['parent_id' => $parentId]);
+            $rabIdToScheduleIdMap = []; $sortOrder = 0;
+            foreach ($rabItems as $item) {
+                $schedule = Schedule::create([
+                    'package_id' => $package->id, 'rab_item_id' => $item->id,
+                    'task_name' => $item->item_number . ' ' . $item->item_name,
+                    'start_date' => now(), 'end_date' => now(), 'progress' => 0,
+                    'sort_order' => $sortOrder++,
+                ]);
+                $rabIdToScheduleIdMap[$item->id] = $schedule->id;
             }
-        }
-
-        return redirect()->route('schedule.index', $package->id)
-            ->with('success', $rabItems->count() . " tugas berhasil disinkronkan dari RAB.");
+            foreach ($rabItems as $item) {
+                if ($item->parent_id && isset($rabIdToScheduleIdMap[$item->id]) && isset($rabIdToScheduleIdMap[$item->parent_id])) {
+                    Schedule::where('id', $rabIdToScheduleIdMap[$item->id])
+                            ->update(['parent_id' => $rabIdToScheduleIdMap[$item->parent_id]]);
+                }
+            }
+        });
+        return redirect()->route('schedule.index', $package->id)->with('success', "Schedule has been successfully synchronized from RAB.");
     }
-    
-    // TAMBAHKAN: Method update untuk modal edit
+
     public function update(Request $request, Schedule $schedule)
     {
         $validated = $request->validate([
@@ -106,36 +88,45 @@ class ScheduleController extends Controller
             'start_date' => 'required|date',
             'end_date' => 'required|date|after_or_equal:start_date',
         ]);
-
         $schedule->update($validated);
-
-        return redirect()->back()->with('success', 'Tugas berhasil diperbarui.');
+        return redirect()->back()->with('success', 'Task updated successfully.');
     }
 
     public function destroy(Schedule $schedule)
     {
-        $schedule->delete();
+        DB::transaction(function () use ($schedule) {
+            Schedule::where('parent_id', $schedule->id)->delete();
+            $schedule->delete();
+        });
         return response()->json(['status' => 'success']);
     }
 
     public function batchDestroy(Request $request)
     {
-        $request->validate([ 'ids' => 'required|array', 'ids.*' => 'integer|exists:schedules,id']);
-        Schedule::destroy($request->ids);
+        $request->validate(['ids' => 'required|array', 'ids.*' => 'integer|exists:schedules,id']);
+        $ids = $request->ids;
+        DB::transaction(function () use ($ids) {
+            $childIds = Schedule::whereIn('parent_id', $ids)->pluck('id');
+            Schedule::destroy($ids);
+            Schedule::destroy($childIds);
+        });
         return response()->json(['status' => 'success']);
     }
-    
+
+    // GANTI: Logika update urutan yang jauh lebih andal
     public function updateOrder(Request $request)
     {
-        $request->validate([
-            'order' => 'required|array',
-            'order.*' => 'integer|exists:schedules,id',
-        ]);
+        $request->validate(['order' => 'required|array', 'order.*.id' => 'required|integer|exists:schedules,id']);
         
-        foreach ($request->order as $index => $taskId) {
-            Schedule::where('id', $taskId)->update(['sort_order' => $index]);
-        }
-
+        DB::transaction(function () use ($request) {
+            foreach ($request->order as $index => $taskData) {
+                Schedule::where('id', $taskData['id'])->update([
+                    'sort_order' => $index,
+                    'parent_id' => $taskData['parent']
+                ]);
+            }
+        });
+        
         return response()->json(['status' => 'success']);
     }
 }
