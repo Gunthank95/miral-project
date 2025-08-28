@@ -16,11 +16,14 @@ class Schedule extends Model
      */
     protected $fillable = [
         'package_id',
+        'rab_item_id', // Pastikan ini ada
+        'parent_id',   // Pastikan ini ada
         'task_name',
         'start_date',
         'end_date',
         'progress',
         'dependencies',
+        'sort_order', // Pastikan ini ada
     ];
 
     /**
@@ -29,5 +32,10 @@ class Schedule extends Model
     public function package()
     {
         return $this->belongsTo(Package::class);
+    }
+	
+	public function rabItem()
+    {
+        return $this->belongsTo(RabItem::class, 'rab_item_id');
     }
 }

@@ -19,9 +19,23 @@
                     Laporan Periodik
                 </a>
 				
-				<a href="{{ route('schedules.index', $package->id ?? $activeProject->id) }}" class="block px-4 py-2 text-sm rounded {{ request()->routeIs('schedules.index') ? 'bg-blue-500 text-white' : 'text-gray-600 hover:bg-gray-100' }}">
-					Jadwal Proyek
-				</a>
+				<div x-data="{ open: {{ request()->routeIs('schedules.index') || request()->routeIs('s-curve.index') ? 'true' : 'false' }} }">
+                    {{-- Tombol Parent Menu --}}
+                    <button @click="open = !open" class="w-full flex justify-between items-center px-4 py-2 text-sm rounded {{ request()->routeIs('schedules.index') || request()->routeIs('s-curve.index') ? 'bg-blue-500 text-white' : 'text-gray-600 hover:bg-gray-100' }}">
+                        <span>Jadwal & S Curve</span>
+                        {{-- Ikon panah --}}
+                        <svg class="w-4 h-4 transform transition-transform" :class="{ 'rotate-180': open }" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                    </button>
+                    {{-- Sub-menu --}}
+                    <div x-show="open" class="pl-4 mt-1 space-y-1">
+                        <a href="{{ route('schedules.index', $package->id ?? $activeProject->id) }}" class="block px-4 py-2 text-sm rounded {{ request()->routeIs('schedules.index') ? 'bg-blue-100 text-blue-800' : 'text-gray-600 hover:bg-gray-100' }}">
+                            Jadwal Proyek
+                        </a>
+                        <a href="{{ route('s-curve.index', $package->id ?? $activeProject->id) }}" class="block px-4 py-2 text-sm rounded {{ request()->routeIs('s-curve.index') ? 'bg-blue-100 text-blue-800' : 'text-gray-600 hover:bg-gray-100' }}">
+                            Kurva S
+                        </a>
+                    </div>
+                </div>
 
                 {{-- TAMBAHKAN: Pindahkan menu Dokumen & RAB ke sini agar lebih relevan --}}
                 <a href="{{ route('rab.index', $package->id ?? $activeProject->id) }}" class="block px-4 py-2 text-sm rounded {{ request()->routeIs('rab.index') ? 'bg-blue-500 text-white' : 'text-gray-600 hover:bg-gray-100' }}">

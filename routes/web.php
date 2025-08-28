@@ -20,6 +20,7 @@ use App\Http\Controllers\UserController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ProjectCompanyController;
 use App\Http\Controllers\PersonnelController;
+use App\Http\Controllers\SCurveController;
 
 /*
 |--------------------------------------------------------------------------
@@ -84,15 +85,19 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/project/{project}/data-proyek', [\App\Http\Controllers\ProjectDataController::class, 'show'])->name('projects.data-proyek');
 	
-	// TAMBAHKAN ROUTE BARU INI UNTUK SCHEDULE
+	// ROUTE UNTUK SCHEDULE
     Route::get('/package/{package}/schedule', [\App\Http\Controllers\ScheduleController::class, 'index'])->name('schedules.index');
 	Route::post('/package/{package}/schedule', [\App\Http\Controllers\ScheduleController::class, 'store'])->name('schedules.store');
 	Route::put('/schedule/{schedule}', [\App\Http\Controllers\ScheduleController::class, 'update'])->name('schedules.update');
-	// GANTI: Nama route diubah di sini agar konsisten
-	Route::post('/package/{package}/schedule/import-from-rab', [\App\Http\Controllers\ScheduleController::class, 'importFromRab'])->name('schedules.import_from_rab'); 
+	Route::post('/package/{package}/schedule/import-from-rab', [\App\Http\Controllers\ScheduleController::class, 'importFromRab'])->name('schedules.import_from_rab');
 	Route::delete('/schedule/{schedule}', [\App\Http\Controllers\ScheduleController::class, 'destroy'])->name('schedules.destroy');
 	Route::post('/schedule/batch-delete', [\App\Http\Controllers\ScheduleController::class, 'batchDestroy'])->name('schedules.batch_delete');
 	Route::post('/schedule/update-order', [\App\Http\Controllers\ScheduleController::class, 'updateOrder'])->name('schedules.update_order');
+    // TAMBAHKAN: Route untuk mengambil data schedule via web (untuk refresh)
+    Route::get('/schedule-data/{package}', [\App\Http\Controllers\ScheduleController::class, 'getScheduleData'])->name('schedules.data');
+    // TAMBAHKAN: Route baru untuk Kurva S
+    Route::get('/package/{package}/s-curve', [SCurveController::class, 'index'])->name('s-curve.index');
+	Route::post('/package/{package}/s-curve/store-plan', [SCurveController::class, 'storePlan'])->name('s-curve.store_plan');
 	
 	// TAMBAHKAN: Rute untuk menampilkan form edit dan memproses update data proyek
     Route::get('/project/{project}/edit-data', [\App\Http\Controllers\ProjectDataController::class, 'edit'])->name('projects.edit-data');
