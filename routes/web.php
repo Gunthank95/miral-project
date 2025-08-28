@@ -85,13 +85,14 @@ Route::middleware('auth')->group(function () {
     Route::get('/project/{project}/data-proyek', [\App\Http\Controllers\ProjectDataController::class, 'show'])->name('projects.data-proyek');
 	
 	// TAMBAHKAN ROUTE BARU INI UNTUK SCHEDULE
-    Route::get('/package/{package}/schedule', [\App\Http\Controllers\ScheduleController::class, 'index'])->name('schedule.index');
-	Route::post('/package/{package}/schedule', [\App\Http\Controllers\ScheduleController::class, 'store'])->name('schedule.store');
-	Route::put('/schedule/{schedule}', [\App\Http\Controllers\ScheduleController::class, 'update'])->name('schedule.update');
-	Route::post('/package/{package}/schedule/import-from-rab', [\App\Http\Controllers\ScheduleController::class, 'importFromRab'])->name('schedule.import_from_rab');
-	Route::delete('/schedule/{schedule}', [\App\Http\Controllers\ScheduleController::class, 'destroy'])->name('schedule.destroy');
-	Route::post('/schedule/batch-delete', [\App\Http\Controllers\ScheduleController::class, 'batchDestroy'])->name('schedule.batch_delete');
-	Route::post('/schedule/update-order', [\App\Http\Controllers\ScheduleController::class, 'updateOrder'])->name('schedule.update_order');
+    Route::get('/package/{package}/schedule', [\App\Http\Controllers\ScheduleController::class, 'index'])->name('schedules.index');
+	Route::post('/package/{package}/schedule', [\App\Http\Controllers\ScheduleController::class, 'store'])->name('schedules.store');
+	Route::put('/schedule/{schedule}', [\App\Http\Controllers\ScheduleController::class, 'update'])->name('schedules.update');
+	// GANTI: Nama route diubah di sini agar konsisten
+	Route::post('/package/{package}/schedule/import-from-rab', [\App\Http\Controllers\ScheduleController::class, 'importFromRab'])->name('schedules.import_from_rab'); 
+	Route::delete('/schedule/{schedule}', [\App\Http\Controllers\ScheduleController::class, 'destroy'])->name('schedules.destroy');
+	Route::post('/schedule/batch-delete', [\App\Http\Controllers\ScheduleController::class, 'batchDestroy'])->name('schedules.batch_delete');
+	Route::post('/schedule/update-order', [\App\Http\Controllers\ScheduleController::class, 'updateOrder'])->name('schedules.update_order');
 	
 	// TAMBAHKAN: Rute untuk menampilkan form edit dan memproses update data proyek
     Route::get('/project/{project}/edit-data', [\App\Http\Controllers\ProjectDataController::class, 'edit'])->name('projects.edit-data');

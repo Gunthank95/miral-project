@@ -19,7 +19,7 @@
                     Laporan Periodik
                 </a>
 				
-				<a href="{{ route('schedule.index', $package->id ?? $activeProject->id) }}" class="block px-4 py-2 text-sm rounded {{ request()->routeIs('schedule.index') ? 'bg-blue-500 text-white' : 'text-gray-600 hover:bg-gray-100' }}">
+				<a href="{{ route('schedules.index', $package->id ?? $activeProject->id) }}" class="block px-4 py-2 text-sm rounded {{ request()->routeIs('schedules.index') ? 'bg-blue-500 text-white' : 'text-gray-600 hover:bg-gray-100' }}">
 					Jadwal Proyek
 				</a>
 

@@ -1,7 +1,7 @@
 {{-- Modal untuk Tambah Tugas Baru --}}
 <div x-show="isModalOpen" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center" x-cloak>
     <div @click.away="isModalOpen = false" class="relative mx-auto p-5 border w-full max-w-lg shadow-lg rounded-md bg-white">
-        <form action="{{ route('schedule.store', $package->id) }}" method="POST" class="space-y-4">
+        <form action="{{ route('schedules.store', $package->id) }}" method="POST" class="space-y-4">
             @csrf
             <h3 class="text-lg leading-6 font-medium text-gray-900 border-b pb-2 mb-4">Tambah Tugas Baru</h3>
             <div>
