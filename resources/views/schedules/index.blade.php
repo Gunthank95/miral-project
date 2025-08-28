@@ -3,7 +3,6 @@
 @section('title', 'Jadwal Proyek')
 
 @push('styles')
-{{-- Library DHTMLX Gantt --}}
 <link href="https://cdn.dhtmlx.com/gantt/edge/dhtmlxgantt.css" rel="stylesheet">
 <style>
     .gantt_delete_btn, .gantt_edit_btn { cursor: pointer; text-align: center; width: 100%; }
@@ -15,24 +14,7 @@
 @endpush
 
 @section('content')
-{{-- PERBAIKAN: Inisialisasi Alpine.js langsung dengan objek, bukan fungsi --}}
-<div class="p-4 sm:p-6" x-data="{
-    isModalOpen: false,
-    isEditModalOpen: false,
-    selectedTasks: [],
-    editFormAction: '',
-    taskToEdit: { id: null, text: '', start_date_raw: '', end_date_raw: '' },
-    openEditModal(taskId) {
-        const task = gantt.getTask(taskId);
-        if (!task) return;
-        this.taskToEdit.id = task.id;
-        this.taskToEdit.text = task.text;
-        this.taskToEdit.start_date_raw = gantt.date.date_to_str('%Y-%m-%d')(task.start_date);
-        this.taskToEdit.end_date_raw = gantt.date.date_to_str('%Y-%m-%d')(gantt.calculateEndDate(task));
-        this.editFormAction = `/schedule/${task.id}`;
-        this.isEditModalOpen = true;
-    }
-}">
+<div class="p-4 sm:p-6" x-data="schedulePageData()">
     <main class="flex-1">
         <header class="bg-white shadow p-4 rounded-lg mb-6">
             <div class="flex flex-wrap justify-between items-center gap-4">
@@ -44,7 +26,7 @@
                 </div>
                 <div class="flex space-x-2 items-center">
                     <div x-show="selectedTasks.length > 0" x-cloak>
-                        <button id="batch-delete-btn" class="bg-red-600 text-white px-4 py-2 rounded text-sm hover:bg-red-700">
+                        <button @click="confirmBatchDelete" class="bg-red-600 text-white px-4 py-2 rounded text-sm hover:bg-red-700">
                             Hapus (<span x-text="selectedTasks.length"></span>) Item
                         </button>
                     </div>
@@ -99,8 +81,8 @@
             </form>
         </div>
     </div>
-	
-	{{-- Modal Edit Tugas --}}
+    
+    {{-- Modal Edit Tugas --}}
     <div x-show="isEditModalOpen" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center" x-cloak>
         <div @click.away="isEditModalOpen = false" class="relative mx-auto p-5 border w-full max-w-lg shadow-lg rounded-md bg-white">
             <div class="mt-3">
@@ -136,138 +118,165 @@
 @push('scripts')
 <script src="https://cdn.dhtmlx.com/gantt/edge/dhtmlxgantt.js"></script>
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
-    const alpineEl = document.querySelector('[x-data]');
-
-    // --- PERBAIKAN: KONFIGURASI KOLOM ---
-    gantt.config.columns = [
-        {name: "select", label: "<input type='checkbox' class='gantt_select_all'/>", width: 40, align: "center", 
-            template: (task) => `<input type='checkbox' class='gantt_task_checkbox' data-id='${task.id}'>`
-        },
-        {name: "text", label: "Task Name", tree: true, width: '*', resize: true},
-        {name: "start_date", label: "Start Date", align: "center", width: 90},
-        {name: "duration", label: "Duration", align: "center", width: 70},
-        // PERBAIKAN: Kolom Aksi sekarang digabung
-        {name: "actions", label: "Actions", width: 80, align: "center", 
-            template: (task) => {
-                const editBtn = `<span class='gantt_edit_btn' data-id='${task.id}'>✏️</span>`;
-                const deleteBtn = `<span class='gantt_delete_btn' data-id='${task.id}'>✖</span>`;
-                return `${editBtn} &nbsp; ${deleteBtn}`;
-            }
-        },
-    ];
-
-    gantt.config.sort = false;
-    gantt.config.order_branch = true;
-    gantt.config.order_branch_free = true;
-    gantt.config.date_format = "%d-%m-%Y";
-    gantt.config.grid_width = 700;
-    gantt.config.open_tree_initially = true;
-
-    gantt.init("gantt_here");
-    
-    // --- EVENT HANDLERS (Logika Interaksi) ---
-	// TAMBAHKAN: Listener untuk event dari tombol edit
-        window.addEventListener('open-edit-modal', (event) => {
-            alpineComponent.getUnwrappedData().openEditModal(event.detail);
-        });
-	    
-    // Event setelah pengguna selesai menggeser (drag) tugas
-    gantt.attachEvent("onAfterTaskDrag", function(id, mode, e){
-        const order = gantt.getTaskByTime().map(task => task.id);
-        fetch('{{ route('schedule.update_order') }}', {
-            method: 'POST',
-            headers: {
-                'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Content-Type': 'application/json', 'Accept': 'application/json',
+    function schedulePageData() {
+        return {
+            isModalOpen: false,
+            isEditModalOpen: false,
+            selectedTasks: [],
+            editFormAction: '',
+            taskToEdit: { id: null, text: '', start_date_raw: '', end_date_raw: '' },
+            
+            openEditModal(taskId) {
+                const task = gantt.getTask(taskId);
+                if (!task) return;
+                this.taskToEdit.id = task.id;
+                this.taskToEdit.text = task.text;
+                // Konversi format tanggal DHTMLX ke format input HTML (YYYY-MM-DD)
+                this.taskToEdit.start_date_raw = gantt.date.date_to_str("%Y-%m-%d")(task.start_date);
+                const endDate = gantt.calculateEndDate({start_date: task.start_date, duration: task.duration, task: task});
+                this.taskToEdit.end_date_raw = gantt.date.date_to_str("%Y-%m-%d")(endDate);
+                this.editFormAction = `/schedule/${task.id}`;
+                this.isEditModalOpen = true;
             },
-            body: JSON.stringify({ order: order })
-        });
-    });
-
-    // Fungsi untuk mengupdate hitungan item yang terpilih
-    function updateSelectedCount() {
-        const count = document.querySelectorAll('.gantt_task_checkbox:checked').length;
-        if (alpineEl && alpineEl.__x) {
-            alpineEl.__x.setData({ selectedTaskCount: count });
+            
+            toggleTask(taskId) {
+                const id = parseInt(taskId);
+                const index = this.selectedTasks.indexOf(id);
+                if (index > -1) {
+                    this.selectedTasks.splice(index, 1);
+                } else {
+                    this.selectedTasks.push(id);
+                }
+            },
+            
+            confirmBatchDelete() {
+                gantt.confirm({
+                    title: "Konfirmasi Hapus",
+                    text: `Anda yakin ingin menghapus ${this.selectedTasks.length} tugas yang dipilih?`,
+                    ok: "Hapus", cancel: "Batal",
+                    callback: (result) => {
+                        if (result) { this.batchDelete(); }
+                    }
+                });
+            },
+            
+            batchDelete() {
+                fetch('{{ route('schedule.batch_delete') }}', {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                        'Content-Type': 'application/json', 'Accept': 'application/json',
+                    },
+                    body: JSON.stringify({ ids: this.selectedTasks })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        gantt.batchUpdate(() => {
+                            this.selectedTasks.forEach(id => {
+                                if (gantt.isTaskExists(id)) gantt.deleteTask(id);
+                            });
+                        });
+                        this.selectedTasks = [];
+                    } else { gantt.alert("Gagal menghapus tugas."); }
+                }).catch(error => gantt.alert("Terjadi error."));
+            }
         }
     }
 
-    // Event untuk semua klik di dalam grid
-    gantt.attachEvent("onTaskClick", function (id, e) {
-        const target = e.target;
-        // Logika untuk tombol hapus tunggal (ikon ✖)
-        if (target.classList.contains("gantt_delete_btn")) {
-            gantt.confirm({
-                title: "Konfirmasi Hapus", text: "Anda yakin ingin menghapus tugas ini?",
-                ok: "Hapus", cancel: "Batal",
-                callback: function (result) {
-                    if (result) {
-                        const taskId = gantt.locate(e);
-                        fetch('/schedule/' + taskId, {
-                            method: 'DELETE',
-                            headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Accept': 'application/json' }
-                        }).then(r => r.json()).then(data => {
-                            if (data.status === 'success') {
-                                gantt.deleteTask(taskId);
-                                updateSelectedCount();
-                            } else { gantt.alert("Gagal menghapus tugas."); }
-                        }).catch(error => gantt.alert("Terjadi error."));
-                    }
+    document.addEventListener('DOMContentLoaded', function() {
+        const alpineComponent = document.querySelector('[x-data]').__x;
+
+        gantt.config.columns = [
+            {name: "select", label: "<input type='checkbox' class='gantt_select_all'/>", width: 40, align: "center", 
+                template: (task) => `<input type='checkbox' class='gantt_task_checkbox' data-id='${task.id}'>`
+            },
+            {name: "text", label: "Task Name", tree: true, width: '*', resize: true},
+            {name: "start_date", label: "Start Date", align: "center", width: 100},
+            {name: "end_date", label: "End Date", align: "center", width: 100, 
+                template: (task) => {
+                    if (!task.start_date) return '';
+                    const endDate = gantt.calculateEndDate({start_date: task.start_date, duration: task.duration, task:task});
+                    return gantt.templates.date_grid(endDate, task);
                 }
+            },
+            {name: "duration", label: "Duration", align: "center", width: 80},
+            {name: "add", label: "", width: 44}, 
+        ];
+        
+        gantt.templates.grid_add = () => `<div class='gantt_delete_btn'>✖</div>`;
+        gantt.config.sort = false;
+        gantt.config.order_branch = true;
+        gantt.config.order_branch_free = true;
+        gantt.config.date_format = "%d-%m-%Y";
+        gantt.config.grid_width = 750;
+        gantt.config.open_tree_initially = true;
+
+        gantt.init("gantt_here");
+        
+        gantt.attachEvent("onTaskDblClick", function(id,e){
+            alpineComponent.getUnwrappedData().openEditModal(id);
+            return false;
+        });
+
+        gantt.attachEvent("onAfterTaskDrag", function(id, mode, e){
+            gantt.render(); // Re-render untuk mengupdate WBS
+            const order = gantt.getTaskByTime().map(task => task.id);
+            fetch('{{ route('schedule.update_order') }}', {
+                method: 'POST',
+                headers: {'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Content-Type': 'application/json', 'Accept': 'application/json'},
+                body: JSON.stringify({ order: order })
             });
-        } 
-        // Logika untuk checkbox
-        else if (target.classList.contains('gantt_task_checkbox')) {
-            setTimeout(updateSelectedCount, 50);
+        });
+
+        function updateSelectedCount() {
+            const alpineData = alpineComponent.getUnwrappedData();
+            alpineData.selectedTasks = [];
+            document.querySelectorAll('.gantt_task_checkbox:checked').forEach(cb => {
+                alpineData.selectedTasks.push(parseInt(cb.dataset.id));
+            });
         }
-        return true;
-    });
 
-    // Event untuk checkbox "pilih semua"
-    gantt.attachEvent("onGridHeaderCheckboxClick", function(name, e){
-        if (name === 'select') {
-            const checkboxes = document.querySelectorAll('.gantt_task_checkbox');
-            checkboxes.forEach(cb => cb.checked = e.target.checked);
-            updateSelectedCount();
-        }
-    });
-    
-    // Event untuk tombol "Hapus (x) Item"
-    document.getElementById('batch-delete-btn').addEventListener('click', function() {
-        const checked = document.querySelectorAll('.gantt_task_checkbox:checked');
-        const idsToDelete = Array.from(checked).map(cb => cb.dataset.id);
-
-        if (idsToDelete.length === 0) return;
-
-        gantt.confirm({
-            title: "Konfirmasi Hapus",
-            text: `Anda yakin ingin menghapus ${idsToDelete.length} tugas yang dipilih?`,
-            ok: "Hapus", cancel: "Batal",
-            callback: function (result) {
-                if (result) {
-                    fetch('{{ route('schedule.batch_delete') }}', {
-                        method: 'POST',
-                        headers: {
-                            'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                            'Content-Type': 'application/json',
-                            'Accept': 'application/json',
-                        },
-                        body: JSON.stringify({ ids: idsToDelete })
-                    })
-                    .then(r => r.json()).then(data => {
-                        if (data.status === 'success') {
-                            gantt.batchUpdate(() => {
-                                idsToDelete.forEach(id => { if(gantt.isTaskExists(id)) gantt.deleteTask(id); });
+        gantt.attachEvent("onTaskClick", function (id, e) {
+            const target = e.target;
+            if (target.classList.contains("gantt_delete_btn")) {
+                gantt.confirm({
+                    title: "Konfirmasi Hapus", text: "Anda yakin ingin menghapus tugas ini?",
+                    ok: "Hapus", cancel: "Batal",
+                    callback: function (result) {
+                        if (result) {
+                            fetch('/schedule/' + id, {
+                                method: 'DELETE',
+                                headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Accept': 'application/json' }
+                            }).then(r => r.json()).then(data => {
+                                if (data.status === 'success') {
+                                    gantt.deleteTask(id);
+                                    updateSelectedCount();
+                                }
                             });
-                            updateSelectedCount();
-                        } else { gantt.alert("Gagal menghapus tugas."); }
-                    }).catch(error => gantt.alert("Terjadi error."));
-                }
+                        }
+                    }
+                });
+            } 
+            else if (target.classList.contains('gantt_task_checkbox')) {
+                setTimeout(updateSelectedCount, 50);
+            }
+            return true;
+        });
+
+        gantt.attachEvent("onGridHeaderCheckboxClick", function(name, e){
+            if (name === 'select') {
+                const checkboxes = document.querySelectorAll('.gantt_task_checkbox');
+                checkboxes.forEach(cb => cb.checked = e.target.checked);
+                updateSelectedCount();
             }
         });
-    });
+        
+        document.getElementById('batch-delete-btn').addEventListener('click', () => {
+             alpineComponent.getUnwrappedData().confirmBatchDelete();
+        });
 
-    gantt.parse({!! $tasks_data !!});
-});
+        gantt.parse({!! $tasks_data !!});
+    });
 </script>
 @endpush
