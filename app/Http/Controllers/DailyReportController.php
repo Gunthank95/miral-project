@@ -27,17 +27,16 @@ class DailyReportController extends Controller
         $filter = $request->input('filter', 'this_period'); // Ambil nilai filter, default 'this_period'
 
         $report = $package->dailyReports()
-                          ->whereDate('report_date', $selectedDate)
-                          ->with(['weather', 'personnel'])
-                          ->first();
-
-        if ($report) {
-            $filteredActivities = DailyLog::where('daily_report_id', $report->id)
-                ->whereDate('log_date', $report->report_date)
-                ->with(['rabItem', 'materials.material', 'equipment', 'photos'])
-                ->get();
-            $report->setRelation('activities', $filteredActivities);
-        }
+			->whereDate('report_date', $selectedDate)
+			->with([
+				'weather', 
+				'personnel',
+				'activities' => function ($query) {
+					// Perintahkan untuk mengambil semua relasi dari setiap aktivitas
+					$query->with(['rabItem', 'manpower', 'materials.material', 'equipment', 'photos']);
+				}
+			])
+			->first();
         
         // Teruskan variabel $filter ke service
         $activityTree = $report ? $this->reportBuilder->generateDailyReport($report, $package->id, $filter) : collect();
