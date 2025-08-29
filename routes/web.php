@@ -67,7 +67,6 @@ Route::prefix('superadmin')->middleware(['auth', 'super.admin'])->name('superadm
     Route::put('/materials/{material}', [MasterDataController::class, 'materialsUpdate'])->name('materials.update');
     Route::delete('/materials/{material}', [MasterDataController::class, 'materialsDestroy'])->name('materials.destroy');
 
-    Route::post('/materials/modal-store', [MasterDataController::class, 'materialsStoreModal'])->name('materials.store.modal');
     Route::get('/work-items', [MasterDataController::class, 'workItemsIndex'])->name('work-items.index');
     Route::post('/work-items', [MasterDataController::class, 'workItemsStore'])->name('work-items.store');
     Route::get('/work-items/{work_item}/materials', [MasterDataController::class, 'workItemNeedsIndex'])->name('work-items.materials.index');
@@ -76,6 +75,11 @@ Route::prefix('superadmin')->middleware(['auth', 'super.admin'])->name('superadm
     Route::get('/work-items/{work_item}/materials/{need}/edit', [MasterDataController::class, 'workItemNeedsEdit'])->name('work-items.materials.edit');
     Route::put('/work-items/{work_item}/materials/{need}', [MasterDataController::class, 'workItemNeedsUpdate'])->name('work-items.materials.update');
 });
+
+Route::prefix('admin')->middleware(['auth'])->name('admin.')->group(function () {
+    Route::post('/materials/modal-store', [MasterDataController::class, 'materialsStoreModal'])->name('materials.store.modal');
+});
+
 
 // --- ROUTE LAINNYA (Perlu Login) ---
 Route::middleware('auth')->group(function () {

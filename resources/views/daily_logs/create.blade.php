@@ -92,21 +92,7 @@
                     </div>
                 </div>
 				
-				
-				{{-- TAMBAHKAN KODE BARU DI SINI --}}
-				<div class="mb-4">
-					<div class="flex justify-between items-center mb-1">
-						<label class="block text-sm font-medium text-gray-700">Tenaga Kerja</label>
-						<button type="button" id="add-manpower-btn" class="text-sm bg-blue-500 text-white px-3 py-1 rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 transition ease-in-out duration-150">
-							+ Tambah
-						</button>
-					</div>
-					<div id="manpower-list" class="space-y-2">
-						{{-- Baris tenaga kerja akan ditambahkan di sini oleh JavaScript --}}
-					</div>
-				</div>
-
-                {{-- Kolom Kanan --}}
+				{{-- Kolom Kanan --}}
                 <div>
                     <div class="mb-4">
                         <label class="block text-sm font-medium text-gray-700">Peralatan Digunakan</label>
@@ -206,14 +192,12 @@ document.addEventListener('DOMContentLoaded', function() {
     let materialCounter = 0;
     const equipmentList = document.getElementById('equipment-list');
     const addEquipmentBtn = document.getElementById('add-equipment-btn');
-    let equipmentCounter = 0;
 	
 	const manpowerList = document.getElementById('manpower-list');
     const addManpowerBtn = document.getElementById('add-manpower-btn');
-	let manpowerCounter = 0;
 	
     const manpowerRoles = ['Pekerja', 'Mandor', 'Kepala Tukang', 'Tukang', 'Pembantu Tukang', 'Operator', 'Pembantu Operator', 'Mekanik', 'Pembantu Mekanik', 'Supir', 'Pembantu Supir'];
-    let manpowerCounter = 0;
+
     const captureBtn = document.getElementById('capture-btn');
     const galleryBtn = document.getElementById('gallery-btn');
     const photoInput = document.getElementById('photo-input');
