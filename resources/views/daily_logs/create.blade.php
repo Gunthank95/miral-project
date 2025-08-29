@@ -172,10 +172,11 @@ document.addEventListener('DOMContentLoaded', function() {
     const tomSelectMain = new TomSelect("#main_rab_item_select", { ...tomSelectConfig, placeholder: 'Cari sub utama...' });
     const tomSelectChild = new TomSelect("#rab_item_id_select", { ...tomSelectConfig, placeholder: 'Pilih Sub Utama dahulu...' });
     tomSelectChild.disable();
-    
+
     // ======================================================
     // DEKLARASI VARIABEL UTAMA
     // ======================================================
+	const manpowerRoles = ['Pekerja', 'Mandor', 'Kepala Tukang', 'Tukang', 'Pembantu Tukang', 'Operator', 'Pembantu Operator', 'Mekanik', 'Pembantu Mekanik', 'Supir', 'Pembantu Supir']; // TAMBAHKAN BARIS INI
     const form = document.getElementById('daily-log-form');
     const errorDiv = document.getElementById('validation-errors');
     const submitBtn = document.getElementById('submit-btn');
@@ -188,15 +189,15 @@ document.addEventListener('DOMContentLoaded', function() {
 	const rabItemSelect = document.getElementById('rab_item_id_select');
     const materialList = document.getElementById('material-list');
     const addMaterialBtn = document.getElementById('add-material-btn');
-    const materialsData = @json($materials ?? []);
+    let materialsData = @json($materials ?? []); // Jadikan `let` agar bisa di-update
     let materialCounter = 0;
     const equipmentList = document.getElementById('equipment-list');
     const addEquipmentBtn = document.getElementById('add-equipment-btn');
-	
+    let equipmentCounter = 0; // TAMBAHKAN: Counter untuk equipment
+
 	const manpowerList = document.getElementById('manpower-list');
     const addManpowerBtn = document.getElementById('add-manpower-btn');
-	
-    const manpowerRoles = ['Pekerja', 'Mandor', 'Kepala Tukang', 'Tukang', 'Pembantu Tukang', 'Operator', 'Pembantu Operator', 'Mekanik', 'Pembantu Mekanik', 'Supir', 'Pembantu Supir'];
+    let manpowerCounter = 0; // TAMBAHKAN: Counter untuk manpower
 
     const captureBtn = document.getElementById('capture-btn');
     const galleryBtn = document.getElementById('gallery-btn');
@@ -235,9 +236,18 @@ document.addEventListener('DOMContentLoaded', function() {
 		const row = document.createElement('div');
 		row.classList.add('flex', 'space-x-2', 'items-center', 'manpower-row-container');
 
+		// Membuat opsi untuk dropdown
+		let optionsHtml = '<option value="">-- Pilih Jabatan --</option>';
+		manpowerRoles.forEach(r => {
+			const isSelected = r === role ? 'selected' : '';
+			optionsHtml += `<option value="${r}" ${isSelected}>${r}</option>`;
+		});
+
 		row.innerHTML = `
 			<div class="w-2/3">
-				<input type="text" name="manpower[${manpowerCounter}][role]" value="${role}" class="w-full border rounded px-3 py-2 text-sm" placeholder="Jabatan (e.g., Tukang, Mandor)">
+				<select name="manpower[${manpowerCounter}][role]" class="w-full border rounded px-3 py-2 text-sm tom-select-manpower">
+					${optionsHtml}
+				</select>
 			</div>
 			<div class="w-1/3">
 				<input type="number" name="manpower[${manpowerCounter}][quantity]" value="${quantity}" class="w-full border rounded px-3 py-2 text-sm" placeholder="Jumlah">
@@ -245,6 +255,15 @@ document.addEventListener('DOMContentLoaded', function() {
 			<button type="button" class="remove-btn text-red-500 font-bold p-2">X</button>
 		`;
 		manpowerList.appendChild(row);
+
+		// Inisialisasi TomSelect pada dropdown yang baru dibuat
+		const newSelect = row.querySelector('.tom-select-manpower');
+		if (newSelect) {
+			new TomSelect(newSelect, {
+				create: true, // Izinkan pengguna menambah jabatan baru jika tidak ada di daftar
+				placeholder: 'Pilih atau ketik jabatan...'
+			});
+		}
 	}
 
     function addMaterialRow(materialId = '', quantity = '', unit = '') {
@@ -295,8 +314,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    async function fetchProgressData() {
-        const rabItemId = rabItemSelect.value;
+    async function fetchProgressData(rabItemId) {
         if (!rabItemId) { resetProgress(); return; }
         try {
             const response = await fetch(`/api/rab-item/${rabItemId}/progress`);
@@ -312,6 +330,7 @@ document.addEventListener('DOMContentLoaded', function() {
             updateAllDisplays();
         } catch (error) { console.error('Gagal mengambil progres:', error); resetProgress(); }
     }
+
 
     function updateAllDisplays() {
         const userInputValue = parseFloat(progressInput.value) || 0;
@@ -357,8 +376,10 @@ document.addEventListener('DOMContentLoaded', function() {
             const response = await fetch(`/api/rab-item/${rabItemId}/last-activity/${packageId}`);
             const data = await response.json();
 
-            document.getElementById('material-list').innerHTML = '';
-            document.getElementById('equipment-list').innerHTML = '';
+            // Selalu bersihkan list sebelum mengisi
+            materialList.innerHTML = '';
+            equipmentList.innerHTML = '';
+            manpowerList.innerHTML = '';
 
             if (data.found) {
                 if (data.materials && data.materials.length > 0) {
@@ -372,14 +393,19 @@ document.addEventListener('DOMContentLoaded', function() {
                 } else {
                     addEquipmentRow();
                 }
+                // Anda bisa menambahkan logika serupa untuk manpower jika data manpower terakhir juga dikirim dari API
             } else {
-                resetAndAddInitialRows();
+                // Jika tidak ditemukan data lama, tambahkan satu baris kosong untuk masing-masing
+                addMaterialRow();
+                addEquipmentRow();
+                addManpowerRow();
             }
         } catch (error) {
             console.error('Gagal mengambil data aktivitas terakhir:', error);
             resetAndAddInitialRows();
         }
     }
+
     function resetAndAddInitialRows() {
         materialList.innerHTML = ''; equipmentList.innerHTML = ''; manpowerList.innerHTML = '';
         addMaterialRow(); addEquipmentRow(); addManpowerRow();
@@ -399,7 +425,6 @@ document.addEventListener('DOMContentLoaded', function() {
     
     if (addMaterialBtn) addMaterialBtn.addEventListener('click', () => addMaterialRow());
     if (materialList) {
-		
         materialList.addEventListener('change', function(e) {
             if (e.target.tagName === 'SELECT' && e.target.closest('.material-row-container')) {
                 const selectedOption = e.target.options[e.target.selectedIndex];
@@ -424,20 +449,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 	
-	if (addManpowerBtn) {
-		addManpowerBtn.addEventListener('click', () => addManpowerRow());
-		// Tambah satu baris kosong saat halaman dimuat
-		addManpowerRow();
-	}
-
-	if (manpowerList) {
-		manpowerList.addEventListener('click', function(e) {
-			if (e.target.classList.contains('remove-btn')) {
-				e.target.closest('.manpower-row-container').remove();
-			}
-		});
-	}
-    
     if(captureBtn) captureBtn.addEventListener('click', () => {
         photoInput.setAttribute('capture', 'environment');
         photoInput.click();
@@ -525,7 +536,15 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     
     if (progressInput) progressInput.addEventListener('input', updateAllDisplays);
-    if (inputTypeRadios) inputTypeRadios.forEach(radio => { radio.addEventListener('change', function() { /* ... */ }); });
+    if (inputTypeRadios) {
+		inputTypeRadios.forEach(radio => {
+			radio.addEventListener('change', function() {
+				currentInputType = this.value;
+				progressInput.value = ''; 
+				updateAllDisplays();
+			});
+		});
+	}
     
     // Event Listener untuk Modal Material
     if (openMaterialModalBtn) openMaterialModalBtn.addEventListener('click', () => materialModal.classList.remove('hidden'));
@@ -547,15 +566,25 @@ document.addEventListener('DOMContentLoaded', function() {
                     throw new Error(errorMsg);
                 }
                 if (data.success) {
-                    materialsData.push(data.material);
+                    materialsData.push(data.material); // Tambahkan material baru ke array data
+                    
+                    // Update semua dropdown material yang ada di halaman
                     document.querySelectorAll('select[name^="materials"]').forEach(selectEl => {
-                        if (selectEl.tomselect) { selectEl.tomselect.addOption(data.material); }
+                        const tomInstance = selectEl.tomselect;
+                        if (tomInstance) {
+                            tomInstance.addOption(data.material);
+                        }
                     });
-                    const lastMaterialRow = Array.from(materialList.querySelectorAll('.material-row-container')).pop();
-                    if (lastMaterialRow) {
-                        const lastSelectTom = lastMaterialRow.querySelector('.ts-control').tomselect;
-                        lastSelectTom.setValue(data.material.id);
+
+                    // Coba set nilai dropdown terakhir yang ditambahkan
+                    const allMaterialSelects = document.querySelectorAll('select[name^="materials"]');
+                    if (allMaterialSelects.length > 0) {
+                        const lastSelect = allMaterialSelects[allMaterialSelects.length - 1];
+                        if (lastSelect.tomselect) {
+                            lastSelect.tomselect.setValue(data.material.id);
+                        }
                     }
+
                     materialModal.classList.add('hidden');
                     newMaterialForm.reset();
                 }
@@ -567,14 +596,12 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Inisialisasi form
-	
-	// ======================================================
+    // ======================================================
     // MENGGANTI PROSES SUBMIT FORM DENGAN AJAX
     // ======================================================
     if (form) {
         form.addEventListener('submit', function(e) {
-            e.preventDefault(); // Mencegah form dikirim secara normal
+            e.preventDefault();
 
             submitBtn.disabled = true;
             submitBtn.textContent = 'Menyimpan...';
@@ -582,9 +609,8 @@ document.addEventListener('DOMContentLoaded', function() {
             errorDiv.innerHTML = '';
 
             const formData = new FormData(form);
-            formData.delete('photos[]'); // Hapus input file default
+            formData.delete('photos[]');
 
-            // Tambahkan file yang sudah diakumulasi ke form data
             accumulatedFiles.forEach(file => {
                 formData.append('photos[]', file);
             });
@@ -600,10 +626,8 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    // Jika berhasil, arahkan ke halaman edit laporan
                     window.location.href = data.redirect_url;
                 } else {
-                    // Jika ada error validasi
                     let errorHtml = '<p class="font-bold">Terjadi Kesalahan:</p><ul class="mt-2 list-disc list-inside text-sm">';
                     for (const key in data.errors) {
                         data.errors[key].forEach(error => {
