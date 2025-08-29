@@ -32,9 +32,9 @@
     <td class="text-center px-2 py-1 border progress-details">{{ $isTitle ? '-' : number_format($volTotal, 2) }}</td>
 
     {{-- Kolom Bobot --}}
-    <td class="text-center px-2 py-1 border progress-details">{{ number_format($progLalu, 2) }}%</td>
-    <td class="text-center px-2 py-1 border progress-details">{{ number_format($progPeriodeIni, 2) }}%</td>
-    <td class="text-center px-2 py-1 border progress-details font-bold">{{ number_format($progTotal, 2) }}%</td>
+    <td class="text-center px-2 py-1 border progress-details">{{ number_format($progLalu, 4) }}%</td>
+    <td class="text-center px-2 py-1 border progress-details">{{ number_format($progPeriodeIni, 4) }}%</td>
+    <td class="text-center px-2 py-1 border progress-details font-bold">{{ number_format($progTotal, 4) }}%</td>
 </tr>
 
 @if ($hasChildren)

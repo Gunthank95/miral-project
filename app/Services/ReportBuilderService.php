@@ -21,22 +21,39 @@ class ReportBuilderService
      * ========================================================================
      */
     public function generateDailyReport(DailyReport $report, int $packageId, string $filter = 'this_period'): Collection
-    {
-        if ($report->activities->isEmpty()) {
-            return collect();
-        }
+	{
+		if ($report->activities->isEmpty()) {
+			return collect();
+		}
 
-        $relevantRabItems = $this->getRelevantRabItemsForDaily($report->activities, $packageId);
-        $this->attachDailyProgress($relevantRabItems, $report->activities, $packageId, $report->report_date);
-        
-        $tree = $this->buildTree($relevantRabItems);
+		// Langkah 1: Ambil SEMUA item RAB dari database untuk paket ini.
+		// Ini adalah kunci agar struktur dan bobot kontrak induknya sama persis seperti di halaman RAB.
+		$allItems = RabItem::where('package_id', $packageId)->get()->keyBy('id');
 
-        if ($filter !== 'all_items') {
-            return $this->filterTreeDaily($tree, $filter);
-        }
+		// Langkah 2: Inisialisasi properti progres untuk semua item agar tidak error.
+		foreach ($allItems as $item) {
+			$item->previous_progress_weight = 0;
+			$item->progress_weight_period = 0;
+			$item->previous_progress_volume = 0;
+			$item->progress_volume_period = 0;
+		}
 
-        return $tree;
-    }
+		// Langkah 3: Tempelkan data progres dari log harian HANYA ke item-item yang relevan.
+		$this->attachDailyProgress($allItems, $report->activities, $packageId, $report->report_date);
+		
+		// Langkah 4: Bangun pohon struktur LENGKAP.
+		// Di dalam fungsi buildTree, bobot kontrak induk akan dihitung dengan benar
+		// karena sekarang ia memiliki semua data anak-anaknya.
+		$tree = $this->buildTree($allItems);
+
+		// Langkah 5: Setelah pohon lengkap dengan bobot yang benar, baru kita filter
+		// untuk menampilkan hanya item yang punya progres (sesuai logika filter).
+		if ($filter !== 'all_items') {
+			return $this->filterTreeDaily($tree, $filter);
+		}
+
+		return $tree;
+	}
 
     private function getRelevantRabItemsForDaily(Collection $activities, int $packageId): Collection
     {
@@ -81,7 +98,7 @@ class ReportBuilderService
             }
         }
     }
-
+	
     private function filterTreeDaily(Collection $tree, string $filter): Collection
     {
         return $tree->filter(function ($item) use ($filter) {
@@ -218,6 +235,10 @@ class ReportBuilderService
             } else {
                 $item->children = collect();
             }
+			
+			if (is_null($item->volume)) {
+				$item->weighting = $children->sum('weighting');
+			}
             
             if (is_null($item->volume)) {
                 $item->weighting = $children->sum('weighting');

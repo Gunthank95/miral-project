@@ -19,11 +19,10 @@ class RabController extends Controller
         $allItems = $package->rabItems()->get()->sortBy('id');
 
         // Kalkulasi total harga keseluruhan sebagai dasar perhitungan bobot
-        $grandTotal = $allItems->whereNull('parent_id')->reduce(function ($carry, $item) {
-            $volume = $item->volume ?? 0;
-            $unit_price = $item->unit_price ?? 0;
-            return $carry + ($volume * $unit_price);
-        }, 0);
+		$grandTotal = $allItems->whereNotNull('volume')->sum(function ($item) {
+			return (float)($item->volume ?? 0) * (float)($item->unit_price ?? 0);
+		});
+
         
         // Bangun struktur hierarki dan hitung totalnya
         $rabTree = $this->buildRabTree($allItems, null, $grandTotal);
