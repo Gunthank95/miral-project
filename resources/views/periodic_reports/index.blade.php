@@ -41,23 +41,28 @@
         <div class="overflow-x-auto">
             <table class="min-w-full text-xs" id="rab-table">
                 <thead class="bg-gray-100">
-                    <tr>
-                        <th rowspan="2" class="text-left px-4 py-2 border">Uraian Pekerjaan</th>
-                        <th rowspan="2" class="px-2 py-1 border">Sat</th>
-                        <th rowspan="2" class="px-2 py-1 border">Volume Kontrak</th>
-                        <th rowspan="2" class="px-2 py-1 border">Bobot Kontrak (%)</th>
-                        <th colspan="3" class="px-2 py-1 border">Volume</th>
-                        <th colspan="3" class="px-2 py-1 border">Bobot (%)</th>
-                    </tr>
-                    <tr>
-                        <th class="px-2 py-1 border font-normal">s/d Periode Lalu</th>
-                        <th class="px-2 py-1 border font-normal">Periode Ini</th>
-                        <th class="px-2 py-1 border font-normal">s/d Periode Ini</th>
-                        <th class="px-2 py-1 border font-normal">s/d Periode Lalu</th>
-                        <th class="px-2 py-1 border font-normal">Periode Ini</th>
-                        <th class="px-2 py-1 border font-normal">s/d Periode Ini</th>
-                    </tr>
-                </thead>
+					<tr>
+						<th rowspan="2" class="py-2 px-4 border w-4/12">Uraian Pekerjaan</th>
+						<th rowspan="2" class="py-2 px-4 border w-1/12">Satuan</th>
+						<th rowspan="2" class="py-2 px-4 border w-1/12 contract-column">Volume Kontrak</th>
+						<th rowspan="2" class="py-2 px-4 border w-1/12 contract-column">Bobot Kontrak (%)</th>
+
+						{{-- TAMBAHKAN ID di sini --}}
+						<th colspan="3" class="py-2 px-4 border" id="volume-header">Volume</th>
+						<th colspan="3" class="py-2 px-4 border" id="weight-header">Bobot (%)</th>
+
+						<th rowspan="2" class="py-2 px-4 border w-1/12">Progress</th>
+					</tr>
+					<tr>
+						<th class="py-2 px-4 border detail-column w-1/12">Lalu</th>
+						<th class="py-2 px-4 border detail-column w-1/12">Periode Ini</th>
+						<th class="py-2 px-4 border w-1/12">S.d Saat Ini</th>
+
+						<th class="py-2 px-4 border detail-column w-1/12">Lalu</th>
+						<th class="py-2 px-4 border detail-column w-1/12">Periode Ini</th>
+						<th class="py-2 px-4 border w-1/12">S.d Saat Ini</th>
+					</tr>
+				</thead>
                 <tbody>
                     @forelse ($rabTree as $item)
                         @include('periodic_reports.partials._item-row', ['item' => $item, 'level' => 0])

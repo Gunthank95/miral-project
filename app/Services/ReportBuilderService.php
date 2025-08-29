@@ -256,6 +256,8 @@ class ReportBuilderService
                 $item->bobot_lalu += $children->sum('bobot_lalu');
                 $item->bobot_periode_ini += $children->sum('bobot_periode_ini');
             }
+			
+			$item->item_progress = ($item->volume > 0) ? (($item->previous_progress_volume + $item->progress_volume_period) / $item->volume) * 100 : 0;
 
             $branch->push($item);
         }

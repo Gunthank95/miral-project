@@ -1,47 +1,50 @@
 @php
-    $padding = $level * 20;
+    $level = $level ?? 0;
     $isTitle = is_null($item->volume);
-    $hasChildren = $item->children->isNotEmpty();
+    $hasChildren = isset($item->children) && $item->children->isNotEmpty();
 
-    $volLalu = $item->volume_lalu ?? 0;
-    $volPeriodeIni = $item->volume_periode_ini ?? 0;
-    $volSdPeriodeIni = $volLalu + $volPeriodeIni;
-
+    // Ambil data progres
     $bobotLalu = $item->bobot_lalu ?? 0;
     $bobotPeriodeIni = $item->bobot_periode_ini ?? 0;
-    $bobotSdPeriodeIni = $bobotLalu + $bobotPeriodeIni;
+    $totalBobot = $bobotLalu + $bobotPeriodeIni;
+    
+    $volLalu = $item->vol_lalu ?? 0;
+    $volPeriodeIni = $item->vol_periode_ini ?? 0;
+    $totalVolume = $volLalu + $volPeriodeIni;
+
+    $itemProgress = $item->item_progress ?? 0;
 @endphp
 
-{{-- TAMBAHKAN: Atribut data-id dan data-parent-id --}}
-<tr class="border-t {{ $isTitle ? 'bg-gray-100 font-semibold' : 'bg-white' }}"
-    data-id="{{ $item->id }}"
-    @if($item->parent_id) data-parent-id="{{ $item->parent_id }}" @endif
-    @if($level > 0) class="hidden" @endif {{-- Sembunyikan semua kecuali level 0 --}}
->
-    <td class="text-left px-4 py-2 border" style="padding-left: {{ 16 + $padding }}px;">
-        @if ($hasChildren)
-            {{-- TAMBAHKAN: Tombol Toggle --}}
-            <button @click="toggle('{{ $item->id }}')" class="mr-1 text-indigo-600">
-                <span class="toggle-icon" data-id="{{ $item->id }}">+</span>
-            </button>
-        @endif
+<tr class="border-t {{ $isTitle ? 'bg-gray-100 font-semibold' : 'bg-white' }}">
+    <td class="text-left px-4 py-2 border" style="padding-left: {{ 16 + $level * 20 }}px;">
         <span class="font-semibold">{{ $item->item_number }}</span> {{ $item->item_name }}
     </td>
     <td class="text-center px-4 py-2 border">{{ $item->unit }}</td>
-    <td class="text-center px-4 py-2 border">{{ $isTitle ? '-' : number_format($item->volume, 2) }}</td>
-    <td class="text-center px-4 py-2 border">{{ $item->weighting ? number_format($item->weighting, 4) . '%' : '-' }}</td>
+    {{-- Volume Kontrak (Tambahkan class contract-column) --}}
+    <td class="text-right px-4 py-2 border contract-column">{{ $isTitle ? '' : number_format($item->volume, 2) }}</td>
+    {{-- Bobot Kontrak (Tambahkan class contract-column) --}}
+    <td class="text-right px-4 py-2 border contract-column">{{ $item->weighting ? number_format($item->weighting, 2) . '%' : '' }}</td>
     
-    <td class="text-center px-2 py-1 border">{{ $isTitle ? '-' : number_format($volLalu, 4) }}</td>
-    <td class="text-center px-2 py-1 border">{{ $isTitle ? '-' : number_format($volPeriodeIni, 4) }}</td>
-    <td class="text-center px-2 py-1 border">{{ $isTitle ? '-' : number_format($volSdPeriodeIni, 4) }}</td>
+    {{-- Volume Lalu (Tambahkan class detail-column) --}}
+    <td class="text-right px-2 py-1 border detail-column">{{ $isTitle ? '' : number_format($volLalu, 2) }}</td>
+    {{-- Volume Periode Ini (Tambahkan class detail-column) --}}
+    <td class="text-right px-2 py-1 border detail-column">{{ $isTitle ? '' : number_format($volPeriodeIni, 2) }}</td>
+    {{-- Volume S.d Saat Ini --}}
+    <td class="text-right px-2 py-1 border">{{ $isTitle ? '' : number_format($totalVolume, 2) }}</td>
 
-    <td class="text-center px-2 py-1 border">{{ number_format($bobotLalu, 4) }}%</td>
-    <td class="text-center px-2 py-1 border">{{ number_format($bobotPeriodeIni, 4) }}%</td>
-    <td class="text-center px-2 py-1 border font-bold">{{ number_format($bobotSdPeriodeIni, 4) }}%</td>
+    {{-- Bobot Lalu (Tambahkan class detail-column) --}}
+    <td class="text-right px-2 py-1 border detail-column">{{ number_format($bobotLalu, 2) }}%</td>
+    {{-- Bobot Periode Ini (Tambahkan class detail-column) --}}
+    <td class="text-right px-2 py-1 border detail-column">{{ number_format($bobotPeriodeIni, 2) }}%</td>
+    {{-- Bobot S.d Saat Ini --}}
+    <td class="text-right px-2 py-1 border font-bold">{{ number_format($totalBobot, 2) }}%</td>
+
+    {{-- Kolom Progress --}}
+    <td class="text-right px-2 py-1 border font-bold">{{ $isTitle ? '' : number_format($itemProgress, 2) . '%' }}</td>
 </tr>
 
-@if ($hasChildren)
-    @foreach ($item->children as $child)
+@if($hasChildren)
+    @foreach($item->children as $child)
         @include('periodic_reports.partials._item-row', ['item' => $child, 'level' => $level + 1])
     @endforeach
 @endif

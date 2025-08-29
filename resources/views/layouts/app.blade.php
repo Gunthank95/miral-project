@@ -8,6 +8,17 @@
 	<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <link href="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/css/tom-select.css" rel="stylesheet">
 	@stack('styles')
+	<style>
+		/* Sembunyikan kolom yang memiliki kelas .detail-column saat tabel memiliki kelas .details-hidden */
+		#progress-table.details-hidden .detail-column {
+			display: none;
+		}
+
+		/* TAMBAHKAN: Sembunyikan juga kolom kontrak saat detail disembunyikan */
+		#progress-table.details-hidden .contract-column {
+			display: none;
+		}
+	</style>
 </head>
 <body class="bg-gray-100">
     <div id="app">
@@ -80,27 +91,44 @@
 
     {{-- SCRIPT UNTUK SIDEBAR TOGGLE --}}
     <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            const sidebarToggle = document.getElementById('sidebar-toggle');
-            const sidebar = document.getElementById('sidebar');
-            const sidebarOverlay = document.getElementById('sidebar-overlay');
-            const sidebarClose = document.getElementById('sidebar-close'); // Dapatkan tombol close
+	document.addEventListener('DOMContentLoaded', function () {
+		
+		// Kita akan menempelkan event listener ke 'body' agar tetap berfungsi
+		// meskipun tombolnya dimuat ulang melalui AJAX saat ganti hari.
+		document.body.addEventListener('click', function(event) {
+			
+			// Cek apakah yang diklik adalah tombol kita
+			if (event.target && event.target.id === 'toggle-details-btn') {
+				const toggleBtn = event.target;
+				const progressTable = document.getElementById('progress-table');
+				
+				// Ambil header Volume dan Bobot berdasarkan ID baru yang akan kita tambahkan
+				const volumeHeader = document.getElementById('volume-header');
+				const weightHeader = document.getElementById('weight-header');
 
-            function toggleSidebar() {
-                sidebar.classList.toggle('-translate-x-full');
-                sidebarOverlay.classList.toggle('hidden');
-            }
+				if (!progressTable) return;
 
-            if (sidebarToggle) {
-                sidebarToggle.addEventListener('click', toggleSidebar);
-            }
-            if (sidebarOverlay) {
-                sidebarOverlay.addEventListener('click', toggleSidebar);
-            }
-            if (sidebarClose) { // Tambahkan event listener untuk tombol close
-                sidebarClose.addEventListener('click', toggleSidebar);
-            }
-        });
-    </script>
+				// Toggle kelas .details-hidden untuk menyembunyikan kolom via CSS
+				progressTable.classList.toggle('details-hidden');
+
+				// Periksa statusnya sekarang
+				if (progressTable.classList.contains('details-hidden')) {
+					// Jika detail disembunyikan:
+					toggleBtn.textContent = 'Tampilkan Detail';
+					// Atur colspan menjadi 1 agar tidak memakan banyak tempat
+					if (volumeHeader) volumeHeader.colSpan = 1;
+					if (weightHeader) weightHeader.colSpan = 1;
+				} else {
+					// Jika detail ditampilkan:
+					toggleBtn.textContent = 'Sembunyikan Detail';
+					// Kembalikan colspan ke 3
+					if (volumeHeader) volumeHeader.colSpan = 3;
+					if (weightHeader) weightHeader.colSpan = 3;
+				}
+			}
+		});
+
+	});
+	</script>
 </body>
 </html>
