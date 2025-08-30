@@ -63,6 +63,17 @@ class DailyReportController extends Controller
 			});
 		}
 		
+		$totalProgress = 0;
+		if (isset($activityTree) && $activityTree->isNotEmpty()) {
+			// Kita menjumlahkan bobot dari semua item di level paling atas (induk)
+			$totalProgress = $activityTree->sum(function($item) {
+				if ($item->parent_id === null) {
+					return ($item->previous_progress_weight ?? 0) + ($item->progress_weight_period ?? 0);
+				}
+				return 0;
+			});
+		}
+		
 		return view('daily_reports.index', [
 			'package' => $package,
 			'selectedDate' => $selectedDate,
@@ -70,6 +81,7 @@ class DailyReportController extends Controller
 			'activityTree' => $activityTree,
 			'allMaterials' => $allMaterials,
 			'allEquipment' => $allEquipment,
+			'totalProgress' => $totalProgress,
 		]);
 	}
 
