@@ -3,36 +3,36 @@
 @section('content')
 <div class="container mx-auto px-4 py-8">
     {{-- Header Halaman --}}
-    <div class="flex justify-between items-center mb-6">
-        <div>
-            <h1 class="text-2xl font-semibold text-gray-800">Ringkasan Laporan Harian</h1>
-            <p class="text-sm text-gray-600">Paket Pekerjaan: {{ $package->name }}</p>
-        </div>
+    <div class="flex flex-col md:flex-row md:justify-between md:items-center mb-6 space-y-4 md:space-y-0">
+        <div class="w-full">
+			<h1 class="text-2xl font-semibold text-gray-800">Ringkasan Laporan Harian</h1>
+			<p class="text-sm text-gray-600">Paket Pekerjaan: {{ $package->name }}</p>
+		</div>
 	</div>
 
     {{-- Form Filter Tanggal dengan Panah Navigasi --}}
-    <div class="bg-white shadow-md rounded-lg p-4 mb-6">
+    <div class="flex-col md:flex-row bg-white shadow-md rounded-lg p-4 mb-6">
         <form action="{{ route('daily_reports.index', $package->id) }}" method="GET" class="flex items-center justify-between space-x-4">
             
             
-            <div class="flex items-center space-x-2">
-				{{-- Tombol Hari Sebelumnya --}}
-				<a href="{{ route('daily_reports.index', ['package' => $package->id, 'date' => $selectedDate->copy()->subDay()->format('Y-m-d')]) }}" class="p-2 bg-gray-200 hover:bg-gray-300 rounded">
-					<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
-				</a>
-				
-					<input type="date" name="date" value="{{ $selectedDate->format('Y-m-d') }}" class="border rounded px-1 py-2 text-sm">
-				
-				{{-- Tombol Hari Berikutnya --}}
-				<a href="{{ route('daily_reports.index', ['package' => $package->id, 'date' => $selectedDate->copy()->addDay()->format('Y-m-d')]) }}" class="p-2 bg-gray-200 hover:bg-gray-300 rounded">
-					<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
-				</a>	
+		<div class="flex flex-col md:flex-row space-y-4 md:space-y-0 items-center space-x-2">
+			{{-- Tombol Hari Sebelumnya --}}
+			<a href="{{ route('daily_reports.index', ['package' => $package->id, 'date' => $selectedDate->copy()->subDay()->format('Y-m-d')]) }}" class="p-2 bg-gray-200 hover:bg-gray-300 rounded">
+				<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+			</a>
+			
+				<input type="date" name="date" value="{{ $selectedDate->format('Y-m-d') }}" class="border rounded px-1 py-2 text-sm">
+			
+			{{-- Tombol Hari Berikutnya --}}
+			<a href="{{ route('daily_reports.index', ['package' => $package->id, 'date' => $selectedDate->copy()->addDay()->format('Y-m-d')]) }}" class="p-2 bg-gray-200 hover:bg-gray-300 rounded">
+				<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+			</a>	
 
-				<button type="submit" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded text-sm">
-					Tampilkan
-				</button>
-			</div>
-			<div class="flex items-center space-x-2">
+			<button type="submit" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded text-sm">
+				Tampilkan
+			</button>
+		</div>
+			<div class="flex flex-col md:flex-row space-y-4 md:space-y-0 items-center space-x-2">
 				{{-- TAMBAHKAN: Tombol Aksi (Buat/Edit) --}}
 				@if($report)
 					<a href="{{ route('daily_reports.edit', ['package' => $package->id, 'daily_report' => $report->id]) }}" class="bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 px-4 rounded inline-flex items-center">
@@ -65,25 +65,40 @@
 				</button>
 			</div>
 			<div class="overflow-x-auto">
-				<table id="progress-table" class="min-w-full bg-white border border-gray-200 text-sm">
-					{{-- THEAD --}}
+				{{-- HAPUS kelas 'min-w-full' dan GANTI 'colgroup' dengan lebar dalam pixel --}}
+				<table id="progress-table" class="bg-white border border-gray-200 text-sm table-fixed">
+					<colgroup>
+						<col style="width: 500px;">  {{-- Uraian Pekerjaan (Lebar Tetap) --}}
+						<col style="width: 80px;">   {{-- Satuan --}}
+						<col class="contract-column" style="width: 90px;"> {{-- Vol. Kontrak --}}
+						<col class="contract-column" style="width: 90px;"> {{-- Bobot Kontrak --}}
+						<col class="detail-column" style="width: 90px;">   {{-- Vol. Lalu --}}
+						<col class="detail-column" style="width: 90px;">   {{-- Vol. Periode --}}
+						<col style="width: 110px;">   {{-- Vol. Total --}}
+						<col class="detail-column" style="width: 90px;">   {{-- Bobot Lalu --}}
+						<col class="detail-column" style="width: 90px;">   {{-- Bobot Periode --}}
+						<col style="width: 90px;">   {{-- Bobot Total --}}
+						<col style="width: 90px;">   {{-- Progress --}}
+					</colgroup>
+
 					<thead class="bg-gray-100">
+						{{-- Header tidak perlu diubah --}}
 						<tr>
-							<th rowspan="2" class="py-2 px-2 border w-4/12">Uraian Pekerjaan</th>
-							<th rowspan="2" class="py-2 px-2 border w-1/12">Satuan</th>
-							<th rowspan="2" class="py-2 px-2 border w-1/12 contract-column">Volume Kontrak</th>
-							<th rowspan="2" class="py-2 px-2 border w-1/12 contract-column">Bobot Kontrak (%)</th>
-							<th colspan="3" class="py-2 px-2 border" id="volume-header">Volume</th>
-							<th colspan="3" class="py-2 px-2 border" id="weight-header">Bobot (%)</th>
-							<th rowspan="2" class="py-2 px-2 border w-1/12">Progress</th>
+							<th rowspan="2" class="py-2 px-4 border">Uraian Pekerjaan</th>
+							<th rowspan="2" class="py-2 px-4 border">Satuan</th>
+							<th rowspan="2" class="py-2 px-4 border contract-column">Volume Kontrak</th>
+							<th rowspan="2" class="py-2 px-4 border contract-column">Bobot Kontrak (%)</th>
+							<th colspan="3" class="py-2 px-4 border" id="volume-header">Volume</th>
+							<th colspan="3" class="py-2 px-4 border" id="weight-header">Bobot (%)</th>
+							<th rowspan="2" class="py-2 px-4 border">Progress</th>
 						</tr>
 						<tr>
-							<th class="py-1 px-2 border w-1/12">Lalu</th>
-							<th class="py-1 px-2 border w-1/12">Periode Ini</th>
-							<th class="py-1 px-2 border w-1/12">S.d Saat Ini</th>
-							<th class="py-1 px-2 border detail-column w-1/12">Lalu</th>
-							<th class="py-1 px-2 border detail-column w-1/12">Periode Ini</th>
-							<th class="py-1 px-2 border w-1/12">S.d Saat Ini</th>
+							<th class="py-2 px-4 border detail-column">Lalu</th>
+							<th class="py-2 px-4 border detail-column">Periode Ini</th>
+							<th class="py-2 px-4 border">S.d Saat Ini</th>
+							<th class="py-2 px-4 border detail-column">Lalu</th>
+							<th class="py-2 px-4 border detail-column">Periode Ini</th>
+							<th class="py-2 px-4 border">S.d Saat Ini</th>
 						</tr>
 					</thead>
 					{{-- TBODY --}}
