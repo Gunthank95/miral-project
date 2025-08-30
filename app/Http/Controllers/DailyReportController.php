@@ -27,23 +27,29 @@ class DailyReportController extends Controller
 		$selectedDate = $dateInput ? new \Carbon\Carbon($dateInput) : \Carbon\Carbon::today();
 		$filter = $request->input('filter', 'this_period');
 
-		// VERSI FINAL: Memuat relasi dengan with() langsung pada query utama
 		$report = $package->dailyReports()
 			->whereDate('report_date', $selectedDate->format('Y-m-d'))
 			->with([
 				'weather', 
-				'personnel', // Ini akan memaksa Laravel memuat data personil
+				'personnel',
 				'activities.materials.material',
 				'activities.equipment'
 			])
 			->first();
 
+		// Inisialisasi variabel
 		$activityTree = collect();
+		$totalProgress = 0;
 		$allMaterials = collect();
 		$allEquipment = collect();
 
 		if ($report) {
-			$activityTree = $this->reportBuilder->generateDailyReport($report, $package->id, $filter);
+			// Panggil service dan ambil hasilnya
+			$reportData = $this->reportBuilder->generateDailyReport($report, $package->id, $filter);
+			
+			// Ekstrak data dari hasil
+			$activityTree = $reportData['tree'];
+			$totalProgress = $reportData['totalProgress'];
 
 			// Mengumpulkan material dari aktivitas
 			$allMaterials = $report->activities->flatMap(function ($activity) {
@@ -63,17 +69,6 @@ class DailyReportController extends Controller
 			});
 		}
 		
-		$totalProgress = 0;
-		if (isset($activityTree) && $activityTree->isNotEmpty()) {
-			// Kita menjumlahkan bobot dari semua item di level paling atas (induk)
-			$totalProgress = $activityTree->sum(function($item) {
-				if ($item->parent_id === null) {
-					return ($item->previous_progress_weight ?? 0) + ($item->progress_weight_period ?? 0);
-				}
-				return 0;
-			});
-		}
-		
 		return view('daily_reports.index', [
 			'package' => $package,
 			'selectedDate' => $selectedDate,
@@ -81,7 +76,7 @@ class DailyReportController extends Controller
 			'activityTree' => $activityTree,
 			'allMaterials' => $allMaterials,
 			'allEquipment' => $allEquipment,
-			'totalProgress' => $totalProgress,
+			'totalProgress' => $totalProgress, // Kirim total progres yang sudah benar
 		]);
 	}
 

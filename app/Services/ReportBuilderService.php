@@ -20,17 +20,19 @@ class ReportBuilderService
      * FUNGSI UNTUK LAPORAN HARIAN (DAILY REPORT)
      * ========================================================================
      */
-    public function generateDailyReport(DailyReport $report, int $packageId, string $filter = 'this_period'): Collection
+    public function generateDailyReport(DailyReport $report, int $packageId, string $filter = 'this_period'): array
 	{
 		if ($report->activities->isEmpty()) {
-			return collect();
+			return [
+				'tree' => collect(),
+				'totalProgress' => 0
+			];
 		}
 
-		// Langkah 1: Ambil SEMUA item RAB dari database untuk paket ini.
-		// Ini adalah kunci agar struktur dan bobot kontrak induknya sama persis seperti di halaman RAB.
+		// Ambil SEMUA item RAB agar struktur dan bobot kontrak induknya benar.
 		$allItems = RabItem::where('package_id', $packageId)->get()->keyBy('id');
 
-		// Langkah 2: Inisialisasi properti progres untuk semua item agar tidak error.
+		// Inisialisasi properti progres untuk semua item.
 		foreach ($allItems as $item) {
 			$item->previous_progress_weight = 0;
 			$item->progress_weight_period = 0;
@@ -38,21 +40,31 @@ class ReportBuilderService
 			$item->progress_volume_period = 0;
 		}
 
-		// Langkah 3: Tempelkan data progres dari log harian HANYA ke item-item yang relevan.
+		// Tempelkan data progres dari log harian.
 		$this->attachDailyProgress($allItems, $report->activities, $packageId, $report->report_date);
 		
-		// Langkah 4: Bangun pohon struktur LENGKAP.
-		// Di dalam fungsi buildTree, bobot kontrak induk akan dihitung dengan benar
-		// karena sekarang ia memiliki semua data anak-anaknya.
+		// Bangun pohon struktur LENGKAP, di sinilah bobot dan progres diakumulasi.
 		$tree = $this->buildTree($allItems);
 
-		// Langkah 5: Setelah pohon lengkap dengan bobot yang benar, baru kita filter
-		// untuk menampilkan hanya item yang punya progres (sesuai logika filter).
+		// HITUNG TOTAL PROGRES DARI POHON LENGKAP (SEBELUM FILTER)
+		$totalProgress = $tree->sum(function($item) {
+			// Kita hanya menjumlahkan bobot dari item induk (level 0) untuk menghindari hitung ganda
+			if ($item->parent_id === null) {
+				return ($item->previous_progress_weight ?? 0) + ($item->progress_weight_period ?? 0);
+			}
+			return 0;
+		});
+
+		// Setelah total dihitung, baru kita filter pohon untuk ditampilkan.
 		if ($filter !== 'all_items') {
-			return $this->filterTreeDaily($tree, $filter);
+			$tree = $this->filterTreeDaily($tree, $filter);
 		}
 
-		return $tree;
+		// Kembalikan keduanya: pohon yang sudah difilter dan total progres yang sudah benar.
+		return [
+			'tree' => $tree,
+			'totalProgress' => $totalProgress
+		];
 	}
 
     private function getRelevantRabItemsForDaily(Collection $activities, int $packageId): Collection
