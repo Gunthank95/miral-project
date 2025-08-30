@@ -29,7 +29,7 @@
                     <div class="flex items-center space-x-4">
                         @auth
                         @if (isset($activeProject))
-                        <button id="sidebar-toggle" class="md:hidden text-gray-600 focus:outline-none" aria-label="Toggle sidebar">
+                        <button id="sidebar-toggle" class="text-gray-600 focus:outline-none" aria-label="Toggle sidebar">
                             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
                         </button>
                         @endif
@@ -92,42 +92,40 @@
     {{-- SCRIPT UNTUK SIDEBAR TOGGLE --}}
     <script>
 	document.addEventListener('DOMContentLoaded', function () {
-		
-		// Kita akan menempelkan event listener ke 'body' agar tetap berfungsi
-		// meskipun tombolnya dimuat ulang melalui AJAX saat ganti hari.
+		const sidebarToggle = document.getElementById('sidebar-toggle');
+		const sidebar = document.getElementById('sidebar');
+		const sidebarOverlay = document.getElementById('sidebar-overlay');
+
+		if (sidebarToggle && sidebar && sidebarOverlay) {
+			sidebarToggle.addEventListener('click', function() {
+				sidebar.classList.toggle('-translate-x-full');
+				sidebarOverlay.classList.toggle('hidden');
+			});
+
+			sidebarOverlay.addEventListener('click', function() {
+				sidebar.classList.add('-translate-x-full');
+				sidebarOverlay.classList.add('hidden');
+			});
+		}
+
+		// Event listener untuk tombol detail (jika masih diperlukan di halaman lain)
 		document.body.addEventListener('click', function(event) {
-			
-			// Cek apakah yang diklik adalah tombol kita
 			if (event.target && event.target.id === 'toggle-details-btn') {
 				const toggleBtn = event.target;
 				const progressTable = document.getElementById('progress-table');
-				
-				// Ambil header Volume dan Bobot berdasarkan ID baru yang akan kita tambahkan
 				const volumeHeader = document.getElementById('volume-header');
 				const weightHeader = document.getElementById('weight-header');
 
 				if (!progressTable) return;
 
-				// Toggle kelas .details-hidden untuk menyembunyikan kolom via CSS
 				progressTable.classList.toggle('details-hidden');
 
-				// Periksa statusnya sekarang
-				if (progressTable.classList.contains('details-hidden')) {
-					// Jika detail disembunyikan:
-					toggleBtn.textContent = 'Tampilkan Detail';
-					// Atur colspan menjadi 1 agar tidak memakan banyak tempat
-					if (volumeHeader) volumeHeader.colSpan = 1;
-					if (weightHeader) weightHeader.colSpan = 1;
-				} else {
-					// Jika detail ditampilkan:
-					toggleBtn.textContent = 'Sembunyikan Detail';
-					// Kembalikan colspan ke 3
-					if (volumeHeader) volumeHeader.colSpan = 3;
-					if (weightHeader) weightHeader.colSpan = 3;
-				}
+				const isHidden = progressTable.classList.contains('details-hidden');
+				toggleBtn.textContent = isHidden ? 'Tampilkan Detail' : 'Sembunyikan Detail';
+				if (volumeHeader) volumeHeader.colSpan = isHidden ? 1 : 3;
+				if (weightHeader) weightHeader.colSpan = isHidden ? 1 : 3;
 			}
 		});
-
 	});
 	</script>
 </body>

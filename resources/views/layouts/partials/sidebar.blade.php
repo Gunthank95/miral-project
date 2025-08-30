@@ -9,25 +9,28 @@
         <div>
             <h4 class="px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Pelaporan & Progres</h4>
             <div class="mt-2 space-y-1">
-                <a href="{{ route('project.show', $activeProject->id) }}" class="block px-4 py-2 text-sm rounded {{ request()->routeIs('project.show') ? 'bg-blue-500 text-white' : 'text-gray-600 hover:bg-gray-100' }}">
-                    Dashboard Proyek
+                <a href="{{ route('project.show', $activeProject->id) }}" class="flex items-center px-4 py-2 text-sm rounded {{ request()->routeIs('project.show') ? 'bg-blue-500 text-white' : 'text-gray-600 hover:bg-gray-100' }}">
+                    <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path></svg>
+                    <span>Dashboard Proyek</span>
                 </a>
-                <a href="{{ route('daily_reports.index', $package->id ?? $activeProject->id) }}" class="block px-4 py-2 text-sm rounded {{ request()->routeIs('daily_reports.index') ? 'bg-blue-500 text-white' : 'text-gray-600 hover:bg-gray-100' }}">
-                    Laporan Harian
+                <a href="{{ route('daily_reports.index', $package->id ?? $activeProject->id) }}" class="flex items-center px-4 py-2 text-sm rounded {{ request()->routeIs('daily_reports.index') ? 'bg-blue-500 text-white' : 'text-gray-600 hover:bg-gray-100' }}">
+                    <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                    <span>Laporan Harian</span>
                 </a>
-                <a href="{{ route('periodic_reports.index', $package->id ?? $activeProject->id) }}" class="block px-4 py-2 text-sm rounded {{ request()->routeIs('periodic_reports.index') ? 'bg-blue-500 text-white' : 'text-gray-600 hover:bg-gray-100' }}">
-                    Laporan Periodik
+                <a href="{{ route('periodic_reports.index', $package->id ?? $activeProject->id) }}" class="flex items-center px-4 py-2 text-sm rounded {{ request()->routeIs('periodic_reports.index') ? 'bg-blue-500 text-white' : 'text-gray-600 hover:bg-gray-100' }}">
+                    <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                    <span>Laporan Periodik</span>
                 </a>
 				
 				<div x-data="{ open: {{ request()->routeIs('schedules.index') || request()->routeIs('s-curve.index') ? 'true' : 'false' }} }">
-                    {{-- Tombol Parent Menu --}}
                     <button @click="open = !open" class="w-full flex justify-between items-center px-4 py-2 text-sm rounded {{ request()->routeIs('schedules.index') || request()->routeIs('s-curve.index') ? 'bg-blue-500 text-white' : 'text-gray-600 hover:bg-gray-100' }}">
-                        <span>Jadwal & S Curve</span>
-                        {{-- Ikon panah --}}
+                        <span class="flex items-center">
+                            <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                            <span>Jadwal & S Curve</span>
+                        </span>
                         <svg class="w-4 h-4 transform transition-transform" :class="{ 'rotate-180': open }" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                     </button>
-                    {{-- Sub-menu --}}
-                    <div x-show="open" class="pl-4 mt-1 space-y-1">
+                    <div x-show="open" class="pl-8 mt-1 space-y-1">
                         <a href="{{ route('schedules.index', $package->id ?? $activeProject->id) }}" class="block px-4 py-2 text-sm rounded {{ request()->routeIs('schedules.index') ? 'bg-blue-100 text-blue-800' : 'text-gray-600 hover:bg-gray-100' }}">
                             Jadwal Proyek
                         </a>
@@ -37,36 +40,37 @@
                     </div>
                 </div>
 
-                {{-- TAMBAHKAN: Pindahkan menu Dokumen & RAB ke sini agar lebih relevan --}}
-                <a href="{{ route('rab.index', $package->id ?? $activeProject->id) }}" class="block px-4 py-2 text-sm rounded {{ request()->routeIs('rab.index') ? 'bg-blue-500 text-white' : 'text-gray-600 hover:bg-gray-100' }}">
-                    RAB (Rencana Anggaran Biaya)
+                <a href="{{ route('rab.index', $package->id ?? $activeProject->id) }}" class="flex items-center px-4 py-2 text-sm rounded {{ request()->routeIs('rab.index') ? 'bg-blue-500 text-white' : 'text-gray-600 hover:bg-gray-100' }}">
+                    <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>
+                    <span>RAB</span>
                 </a>
-                <a href="{{ route('documents.index', $package->id ?? $activeProject->id) }}" class="block px-4 py-2 text-sm rounded {{ request()->routeIs('documents.index') ? 'bg-blue-500 text-white' : 'text-gray-600 hover:bg-gray-100' }}">
-                    Gambar & Dokumen
+                <a href="{{ route('documents.index', $package->id ?? $activeProject->id) }}" class="flex items-center px-4 py-2 text-sm rounded {{ request()->routeIs('documents.index') ? 'bg-blue-500 text-white' : 'text-gray-600 hover:bg-gray-100' }}">
+                    <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0011.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>
+                    <span>Dokumen</span>
                 </a>
             </div>
         </div>
 
-        {{-- TAMBAHKAN: Grup Menu Baru untuk Informasi Proyek --}}
         <div>
             <h4 class="px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Informasi Proyek</h4>
             <div class="mt-2 space-y-1">
-                <a href="{{ route('projects.data-proyek', $activeProject->id) }}" class="block px-4 py-2 text-sm rounded {{ request()->routeIs('projects.data-proyek') ? 'bg-blue-500 text-white' : 'text-gray-600 hover:bg-gray-100' }}">
-                    Data Utama Proyek
+                <a href="{{ route('projects.data-proyek', $activeProject->id) }}" class="flex items-center px-4 py-2 text-sm rounded {{ request()->routeIs('projects.data-proyek') ? 'bg-blue-500 text-white' : 'text-gray-600 hover:bg-gray-100' }}">
+                    <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    <span>Data Utama Proyek</span>
                 </a>
             </div>
         </div>
         
-		{{-- GANTI: Grup menu ini diubah menjadi Manajemen Pengguna --}}
 		<div>
 			<h4 class="px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Manajemen Pengguna</h4>
 			<div class="mt-2 space-y-1">
-                {{-- TAMBAHKAN: Link baru untuk melihat daftar pengguna --}}
-				<a href="{{ route('users.index', $activeProject->id) }}" class="block px-4 py-2 text-sm rounded {{ request()->routeIs('users.index') ? 'bg-blue-500 text-white' : 'text-gray-600 hover:bg-gray-100' }}">
-					Daftar Pengguna
+				<a href="{{ route('users.index', $activeProject->id) }}" class="flex items-center px-4 py-2 text-sm rounded {{ request()->routeIs('users.index') ? 'bg-blue-500 text-white' : 'text-gray-600 hover:bg-gray-100' }}">
+                    <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M15 21a6 6 0 00-9-5.197m0 0A5.975 5.975 0 0112 13a5.975 5.975 0 01-3 5.197z"></path></svg>
+					<span>Daftar Pengguna</span>
 				</a>
-				<a href="{{ route('invitations.index', $activeProject->id) }}" class="block px-4 py-2 text-sm rounded {{ request()->routeIs('invitations.index') ? 'bg-blue-500 text-white' : 'text-gray-600 hover:bg-gray-100' }}">
-					Undang Pengguna
+				<a href="{{ route('invitations.index', $activeProject->id) }}" class="flex items-center px-4 py-2 text-sm rounded {{ request()->routeIs('invitations.index') ? 'bg-blue-500 text-white' : 'text-gray-600 hover:bg-gray-100' }}">
+                    <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"></path></svg>
+					<span>Undang Pengguna</span>
 				</a>
 			</div>
 		</div>
