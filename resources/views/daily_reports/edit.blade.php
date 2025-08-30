@@ -7,7 +7,7 @@
     <header class="bg-white shadow p-4 rounded-lg mb-6">
         <h1 class="text-2xl font-bold text-gray-800">Pembuatan Laporan Harian</h1>
         <p class="text-sm text-gray-500">
-            Tanggal: {{ \Carbon\Carbon::parse($report->report_date)->isoFormat('dddd, D MMMM YYYY') }}
+            Tanggal: {{ \Carbon\Carbon::parse($daily_report->report_date)->isoFormat('dddd, D MMMM YYYY') }}
         </p>
     </header>
 
@@ -25,7 +25,7 @@
                 <div><span class="font-semibold block">Nama Proyek:</span> {{ $package->project->name }}</div>
                 <div><span class="font-semibold block">Nama Paket:</span> {{ $package->name }}</div>
                 <div><span class="font-semibold block">Lokasi:</span> {{ $package->project->location }}</div>
-                <div><span class="font-semibold block">Nomor Laporan:</span> #{{ $report->id }}</div>
+                <div><span class="font-semibold block">Nomor Laporan:</span> #{{ $daily_report->id }}</div>
             </div>
         </div>
 
@@ -42,14 +42,14 @@
                     </tr>
                 </thead>
                 <tbody id="weather-table-body">
-                    @forelse ($report->weather as $weather_log)
+                    @forelse ($daily_report->weather as $weather_log)
                         @include('daily_reports.partials.weather-row', ['weather_log' => $weather_log])
                     @empty
                         <tr id="weather-empty-row"><td colspan="4" class="text-center p-4 text-gray-500">Belum ada data cuaca.</td></tr>
                     @endforelse
                 </tbody>
             </table>
-            <form id="weather-form" action="{{ route('daily_reports.weather.store', $report->id) }}" method="POST" class="border-t pt-4 space-y-4">
+            <form id="weather-form" action="{{ route('daily_reports.weather.store', $daily_report->id) }}" method="POST" class="border-t pt-4 space-y-4">
                 @csrf
                 <div class="flex items-end space-x-4">
                     <div class="w-1/4">
@@ -59,25 +59,15 @@
                             <button type="button" id="time-now-btn" class="bg-gray-200 text-gray-600 px-2.5 py-1 rounded text-xs hover:bg-gray-300 flex-shrink-0">Now</button>
                         </div>
                     </div>
-                    <div class="mt-4">
-						<h3 class="text-lg font-semibold mb-2">Tambah Cuaca</h3>
-						<form id="weather-form" action="{{ route('daily_reports.weather.store', $daily_report->id) }}" method="POST" class="flex items-center space-x-2 text-sm">
-							@csrf
-							<input type="time" name="start_time" class="border rounded px-2 py-1 w-1/4" required>
-							<span class="text-gray-500">-</span>
-							<input type="time" name="end_time" class="border rounded px-2 py-1 w-1/4" required>
-							
-							{{-- GANTI INPUT TEXT MENJADI DROPDOWN --}}
-							<select name="type" class="border rounded px-2 py-1 w-1/2" required>
-								<option value="">-- Pilih Kondisi --</option>
-								<option value="Cerah">Cerah</option>
-								<option value="Berawan">Berawan</option>
-								<option value="Hujan">Hujan</option>
-								<option value="Gerimis">Gerimis</option>
-							</select>
-							
-							<button type="submit" class="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600">Tambah</button>
-						</form>
+					{{-- GANTI INPUT TEXT MENJADI DROPDOWN --}}
+					<div class="w-1/4">
+						<label for="condition" class="block text-xs font-medium text-gray-700">Kondisi Cuaca</label>
+						<select name="condition" id="condition" required class="mt-1 w-full border rounded px-3 py-1 text-sm">
+							<option>Cerah</option>
+							<option>Berawan</option>
+							<option>Hujan Ringan</option>
+							<option>Hujan Deras</option>
+						</select>
 					</div>
                     <div class="flex-grow">
                         <label for="description" class="block text-xs font-medium text-gray-700">Keterangan (Opsional)</label>
@@ -99,14 +89,14 @@
                     <h3 class="font-semibold text-gray-700 mb-2">Kontraktor</h3>
                     <table class="w-full text-sm mb-4">
                         <tbody id="personnel-table-kontraktor">
-                            @foreach ($report->personnel->where('company_type', 'Kontraktor') as $personnel)
+                            @foreach ($daily_report->personnel->where('company_type', 'Kontraktor') as $personnel)
                                 @include('daily_reports.partials.personnel-row', ['personnel' => $personnel])
                             @endforeach
                         </tbody>
                         <tfoot class="font-bold bg-gray-50">
                             <tr>
                                 <td class="px-2 py-1 text-right">Total</td>
-                                <td id="total-kontraktor" class="px-2 py-1 text-center">{{ $report->personnel->where('company_type', 'Kontraktor')->sum('count') }}</td>
+                                <td id="total-kontraktor" class="px-2 py-1 text-center">{{ $daily_report->personnel->where('company_type', 'Kontraktor')->sum('count') }}</td>
                                 <td></td>
                             </tr>
                         </tfoot>
@@ -122,14 +112,14 @@
                     <h3 class="font-semibold text-gray-700 mb-2">MK / Pengawas</h3>
                     <table class="w-full text-sm mb-4">
                         <tbody id="personnel-table-mk">
-                             @foreach ($report->personnel->where('company_type', 'MK') as $personnel)
+                             @foreach ($daily_report->personnel->where('company_type', 'MK') as $personnel)
                                 @include('daily_reports.partials.personnel-row', ['personnel' => $personnel])
                             @endforeach
                         </tbody>
                         <tfoot class="font-bold bg-gray-50">
                              <tr>
                                 <td class="px-2 py-1 text-right">Total</td>
-                                <td id="total-mk" class="px-2 py-1 text-center">{{ $report->personnel->where('company_type', 'MK')->sum('count') }}</td>
+                                <td id="total-mk" class="px-2 py-1 text-center">{{ $daily_report->personnel->where('company_type', 'MK')->sum('count') }}</td>
                                 <td></td>
                             </tr>
                         </tfoot>
@@ -148,7 +138,7 @@
         <div class="bg-white rounded shadow p-4">
             <div class="flex justify-between items-center mb-4 border-b pb-2">
                 <h2 class="text-xl font-semibold">4. Aktivitas Pekerjaan & Material</h2>
-                <a href="{{ route('daily_log.create', $report->id) }}" class="bg-blue-500 text-white px-3 py-1 rounded text-sm hover:bg-blue-600">
+                <a href="{{ route('daily_log.create', $daily_report->id) }}" class="bg-blue-500 text-white px-3 py-1 rounded text-sm hover:bg-blue-600">
                     + Tambah Aktivitas
                 </a>
             </div>
@@ -165,7 +155,7 @@
                         </tr>
                     </thead>
                     <tbody>
-                        @forelse ($report->activities as $activity)
+                        @forelse ($daily_report->activities as $activity)
                             <tr class="border-t">
 								<td class="px-4 py-2 text-center">
 									<button class="expand-btn text-blue-500" data-target="details-{{ $activity->id }}">▼</button>
@@ -285,7 +275,7 @@
             const companyType = this.dataset.companyType;
             formData.append('company_type', companyType);
             
-            const actionUrl = "{{ route('daily_reports.personnel.store', $report->id) }}";
+            const actionUrl = "{{ route('daily_reports.personnel.store', $daily_report->id) }}";
             const csrfToken = this.querySelector('input[name="_token"]').value;
 
             fetch(actionUrl, {

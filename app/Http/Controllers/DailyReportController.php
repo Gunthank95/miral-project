@@ -119,7 +119,7 @@ class DailyReportController extends Controller
 
         return view('daily_reports.edit', [
             'package' => $package,
-            'report' => $daily_report,
+            'daily_report' => $daily_report,
         ]);
     }
 
