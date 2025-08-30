@@ -59,15 +59,26 @@
                             <button type="button" id="time-now-btn" class="bg-gray-200 text-gray-600 px-2.5 py-1 rounded text-xs hover:bg-gray-300 flex-shrink-0">Now</button>
                         </div>
                     </div>
-                    <div class="w-1/4">
-                        <label for="condition" class="block text-xs font-medium text-gray-700">Kondisi Cuaca</label>
-                        <select name="condition" id="condition" required class="mt-1 w-full border rounded px-3 py-1 text-sm">
-                            <option>Cerah</option>
-                            <option>Berawan</option>
-                            <option>Hujan Ringan</option>
-                            <option>Hujan Deras</option>
-                        </select>
-                    </div>
+                    <div class="mt-4">
+						<h3 class="text-lg font-semibold mb-2">Tambah Cuaca</h3>
+						<form id="weather-form" action="{{ route('daily_reports.weather.store', $daily_report->id) }}" method="POST" class="flex items-center space-x-2 text-sm">
+							@csrf
+							<input type="time" name="start_time" class="border rounded px-2 py-1 w-1/4" required>
+							<span class="text-gray-500">-</span>
+							<input type="time" name="end_time" class="border rounded px-2 py-1 w-1/4" required>
+							
+							{{-- GANTI INPUT TEXT MENJADI DROPDOWN --}}
+							<select name="type" class="border rounded px-2 py-1 w-1/2" required>
+								<option value="">-- Pilih Kondisi --</option>
+								<option value="Cerah">Cerah</option>
+								<option value="Berawan">Berawan</option>
+								<option value="Hujan">Hujan</option>
+								<option value="Gerimis">Gerimis</option>
+							</select>
+							
+							<button type="submit" class="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600">Tambah</button>
+						</form>
+					</div>
                     <div class="flex-grow">
                         <label for="description" class="block text-xs font-medium text-gray-700">Keterangan (Opsional)</label>
                         <input type="text" name="description" id="description" class="mt-1 w-full border rounded px-3 py-1 text-sm" placeholder="Contoh: Pekerjaan dihentikan">

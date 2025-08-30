@@ -135,6 +135,7 @@ Route::middleware('auth')->group(function () {
 
     // Laporan Harian
     Route::get('/package/{package}/daily-reports', [DailyReportController::class, 'index'])->name('daily_reports.index');
+	Route::get('/package/{package}', [\App\Http\Controllers\PackageController::class, 'show'])->name('package.show');
     
     Route::get('/package/{package}/daily-reports/create', [DailyReportController::class, 'create'])->name('daily_reports.create');
     Route::get('/package/{package}/daily-reports/{daily_report}/edit', [DailyReportController::class, 'edit'])->name('daily_reports.edit');

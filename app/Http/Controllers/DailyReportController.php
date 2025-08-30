@@ -22,47 +22,56 @@ class DailyReportController extends Controller
     }
 
     public function index(Request $request, Package $package)
-    {
-        $selectedDate = $request->input('date') ? Carbon::parse($request->input('date')) : Carbon::today();
-        $filter = $request->input('filter', 'this_period'); // Ambil nilai filter, default 'this_period'
+	{
+		$dateInput = $request->input('date');
+		$selectedDate = $dateInput ? new \Carbon\Carbon($dateInput) : \Carbon\Carbon::today();
+		$filter = $request->input('filter', 'this_period');
 
-        $report = $package->dailyReports()
-			->whereDate('report_date', $selectedDate)
+		// VERSI FINAL: Memuat relasi dengan with() langsung pada query utama
+		$report = $package->dailyReports()
+			->whereDate('report_date', $selectedDate->format('Y-m-d'))
 			->with([
 				'weather', 
-				'personnel',
-				'activities' => function ($query) {
-					// Perintahkan untuk mengambil semua relasi dari setiap aktivitas
-					$query->with(['rabItem', 'manpower', 'materials.material', 'equipment', 'photos']);
-				}
+				'personnel', // Ini akan memaksa Laravel memuat data personil
+				'activities.materials.material',
+				'activities.equipment'
 			])
 			->first();
-        
-        // Teruskan variabel $filter ke service
-        $activityTree = $report ? $this->reportBuilder->generateDailyReport($report, $package->id, $filter) : collect();
 
-        $viewData = [
-            'package' => $package,
-            'report' => $report,
-            'selectedDate' => $selectedDate->toDateString(),
-            'activityTree' => $activityTree,
-            'currentFilter' => $filter, // Kirim filter ke view agar dropdown tahu pilihan saat ini
-        ];
+		$activityTree = collect();
+		$allMaterials = collect();
+		$allEquipment = collect();
 
-        if ($request->ajax()) {
-            $htmlContent = $report 
-                ? view('daily_reports.partials._summary-content', $viewData)->render()
-                : view('daily_reports.partials._report-not-found', $viewData)->render();
+		if ($report) {
+			$activityTree = $this->reportBuilder->generateDailyReport($report, $package->id, $filter);
 
-            return response()->json([
-                'html' => $htmlContent,
-                'date_header' => $selectedDate->isoFormat('dddd, D MMMM YYYY'),
-                'report_exists' => (bool)$report,
-            ]);
-        }
+			// Mengumpulkan material dari aktivitas
+			$allMaterials = $report->activities->flatMap(function ($activity) {
+				return $activity->materials;
+			})->groupBy('material.name')->map(function ($items) {
+				return [
+					'quantity' => $items->sum('quantity'),
+					'unit' => $items->first()->material->unit ?? ''
+				];
+			});
 
-        return view('daily_reports.index', $viewData);
-    }
+			// Mengumpulkan peralatan dari aktivitas
+			$allEquipment = $report->activities->flatMap(function ($activity) {
+				return $activity->equipment;
+			})->groupBy('name')->map(function ($items) {
+				return $items->sum('quantity');
+			});
+		}
+		
+		return view('daily_reports.index', [
+			'package' => $package,
+			'selectedDate' => $selectedDate,
+			'report' => $report,
+			'activityTree' => $activityTree,
+			'allMaterials' => $allMaterials,
+			'allEquipment' => $allEquipment,
+		]);
+	}
 
     public function create(Request $request, Package $package)
     {
