@@ -43,4 +43,12 @@ class Document extends Model
 	{
 		return $this->belongsToMany(RabItem::class, 'document_rab_item');
 	}
+	
+	/**
+     * TAMBAHKAN: Fungsi untuk relasi ke Riwayat Persetujuan.
+     */
+    public function approvals()
+    {
+        return $this->hasMany(DocumentApproval::class);
+    }
 }

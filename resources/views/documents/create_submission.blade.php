@@ -25,11 +25,11 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
                         <label for="document_number" class="block text-sm font-medium text-gray-700">No. Dokumen (Surat Pengajuan)</label>
-                        <input type="text" name="document_number" id="document_number" class="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md" required>
+                        <input type="text" name="document_number" id="document_number" class="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md px-3 py-2" required>
                     </div>
                     <div>
                         <label for="drawing_numbers" class="block text-sm font-medium text-gray-700">No. Gambar (pisahkan dengan koma jika lebih dari satu)</label>
-                        <input type="text" name="drawing_numbers" id="drawing_numbers" class="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md">
+                        <input type="text" name="drawing_numbers" id="drawing_numbers" class="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md px-3 py-2">
                     </div>
                 </div>
 
@@ -43,7 +43,7 @@
 								<option value="">-- Pilih Sub Item --</option>
 								{{-- PERBAIKI: Tampilkan semua pilihan yang sudah disiapkan Controller --}}
 								@foreach($mainRabItems as $item)
-									<option value="{{ $item->id }}">{{ $item->item_name }}</option>
+									<option value="{{ $item->id }}">{{ $item->item_number }} {{ $item->item_name }}</option>
 								@endforeach
 							</select>
                         </div>
@@ -57,17 +57,17 @@
                 {{-- Ditujukan Kepada --}}
                 <div>
                     <label for="addressed_to" class="block text-sm font-medium text-gray-700">Ditujukan Kepada</label>
-                    <input type="text" name="addressed_to" id="addressed_to" value="Manajemen Konstruksi & Owner" class="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md bg-gray-100" readonly>
+                    <input type="text" name="addressed_to" id="addressed_to" value="Manajemen Konstruksi & Owner" class="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md bg-gray-100 px-3 py-2" readonly>
                 </div>
                 
                 {{-- Judul & Deskripsi --}}
                 <div>
                     <label for="title" class="block text-sm font-medium text-gray-700">Judul Dokumen</label>
-                    <input type="text" name="title" id="title" class="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md" required>
+                    <input type="text" name="title" id="title" class="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md px-3 py-2" required>
                 </div>
                 <div>
                     <label for="description" class="block text-sm font-medium text-gray-700">Deskripsi (Opsional)</label>
-                    <textarea name="description" id="description" rows="3" class="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"></textarea>
+                    <textarea name="description" id="description" rows="3" class="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md px-3 py-2"></textarea>
                 </div>
 
                 {{-- Upload File --}}
@@ -91,8 +91,6 @@
 </div>
 @endsection
 
-@push('scripts')
-<script src="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/js/tom-select.complete.min.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     const tomSelectMain = new TomSelect("#main_rab_item_select", {
@@ -101,39 +99,62 @@ document.addEventListener('DOMContentLoaded', function () {
 
     const tomSelectChild = new TomSelect("#rab_item_id_select", {
         placeholder: 'Pilih Item Pekerjaan...',
-        plugins: ['remove_button']
+        plugins: ['remove_button'],
+        // PERBAIKI (2a): "Ajari" dropdown cara menampilkan spasi untuk hirarki
+        render: {
+            item: function(data, escape) {
+                return '<div>' + data.text.replace(/&nbsp;/g, '\u00A0') + '</div>';
+            },
+            option: function(data, escape) {
+                return '<div>' + data.text.replace(/&nbsp;/g, '\u00A0') + '</div>';
+            }
+        }
     });
     tomSelectChild.disable();
 
+    // PERBAIKI (2b): Logika baru agar pilihan tidak hilang
     tomSelectMain.on('change', async function(parentId) {
-        tomSelectChild.clear();
-        tomSelectChild.clearOptions();
-        tomSelectChild.disable();
+        if (!parentId) {
+            tomSelectChild.clearOptions();
+            tomSelectChild.disable();
+            return;
+        }
 
-        if (!parentId) return;
+        // Simpan item yang sudah dipilih saat ini
+        const selectedItems = tomSelectChild.items;
 
-        tomSelectChild.addOption({ value: '', text: 'Memuat...' });
+        // Tampilkan status "Memuat..." tanpa menghapus pilihan
+        tomSelectChild.addOption({ value: 'loading', text: 'Memuat...' });
         tomSelectChild.refreshOptions(false);
 
         try {
             const response = await fetch(`/api/rab-items/${parentId}/children`);
             const children = await response.json();
             
-            tomSelectChild.clearOptions();
+            // Hapus opsi "Memuat..."
+            tomSelectChild.removeOption('loading');
+
+            // Tambahkan opsi baru dari Sub Item yang dipilih
             children.forEach(option => {
-                tomSelectChild.addOption({
-                    value: option.id,
-                    text: option.name,
-                    disabled: option.is_title
-                });
+                // Hanya tambahkan jika belum ada, untuk menghindari duplikat
+                if (!tomSelectChild.getOption(option.id)) {
+                    tomSelectChild.addOption({
+                        value: option.id,
+                        text: option.name,
+                        disabled: option.is_title
+                    });
+                }
             });
+
+            // Kembalikan item yang sebelumnya sudah dipilih
+            tomSelectChild.setValue(selectedItems, true); // 'true' agar tidak memicu event change
             tomSelectChild.enable();
+
         } catch (error) {
             console.error('Gagal memuat item pekerjaan:', error);
-            tomSelectChild.clearOptions();
-            tomSelectChild.addOption({ value: '', text: 'Gagal memuat data' });
+            tomSelectChild.removeOption('loading');
+            // Mungkin tambahkan notifikasi error jika diperlukan
         }
     });
 });
 </script>
-@endpush

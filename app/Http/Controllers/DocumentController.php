@@ -106,9 +106,10 @@ class DocumentController extends Controller
 		$document = Document::create([
 			'project_id' => $project->id,
 			'package_id' => $package->id,
-			'uploader_id' => \Auth::id(),
+			'user_id' => \Auth::id(),
 			'category' => $request->category,
 			'title' => $request->title,
+			'name' => $request->title,
 			'description' => $request->description,
 			'file_path' => $filePath,
 			// Status awal sekarang tergantung pada kebutuhan persetujuan
@@ -122,12 +123,16 @@ class DocumentController extends Controller
 		if ($requiresApproval) {
 			$document->approvals()->create([
 				'user_id' => \Auth::id(),
-				'role' => 'contractor', // Asumsi pengunggah awal adalah kontraktor
 				'status' => 'submitted', // Status awal di riwayat
 				'notes' => 'Pengajuan awal dari Kontraktor.'
 			]);
 		}
+		
+		// TAMBAHKAN BLOK INI UNTUK MENGHUBUNGKAN DOKUMEN DENGAN RAB
 		// =================================================================
+		if ($request->has('rab_items')) {
+			$document->rabItems()->sync($request->rab_items);
+		}
 
 		return redirect()->route('documents.index', ['package' => $package->id])
 						 ->with('success', 'Dokumen berhasil diunggah.');
