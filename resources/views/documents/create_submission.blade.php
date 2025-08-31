@@ -3,30 +3,16 @@
 @push('styles')
 <link href="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/css/tom-select.css" rel="stylesheet">
 <style>
-    .ts-control {
-        border-radius: 0.375rem;
-        border-color: #D1D5DB;
-        padding: 0.5rem 0.75rem;
-    }
-    .ts-dropdown {
-        font-size: 0.875rem;
-    }
-    .ts-input::placeholder {
-        color: #9CA3AF;
-    }
+    /* Styling agar konsisten dengan form lain */
+    .ts-control { border-radius: 0.375rem; border-color: #D1D5DB; padding: 0.5rem 0.75rem; }
+    .ts-dropdown { font-size: 0.875rem; }
+    .ts-input::placeholder { color: #9CA3AF; }
 </style>
 @endpush
 
 @section('content')
 <div class="container mx-auto px-4 py-8">
-    <x-slot name="header">
-        <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-            Pengajuan Dokumen Baru
-        </h2>
-    </x-slot>
-
-    {{-- MENYALIN STRUKTUR "BINGKAI" DARI HALAMAN TAMBAH AKTIVITAS --}}
-    <div class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+    <div class="max-w-4xl mx-auto">
         <div class="bg-white overflow-hidden shadow-xl sm:rounded-lg p-6">
             <h1 class="text-2xl font-bold mb-6">Form Pengajuan Shop Drawing</h1>
 
@@ -54,14 +40,16 @@
                         <div>
                             <label for="main_rab_item_select" class="block text-xs font-medium text-gray-600 mb-1">Sub Item Utama</label>
                             <select id="main_rab_item_select">
-                                {{-- Opsi akan diisi oleh JavaScript --}}
-                            </select>
+								<option value="">-- Pilih Sub Item --</option>
+								{{-- PERBAIKI: Tampilkan semua pilihan yang sudah disiapkan Controller --}}
+								@foreach($mainRabItems as $item)
+									<option value="{{ $item->id }}">{{ $item->item_name }}</option>
+								@endforeach
+							</select>
                         </div>
                         <div>
                             <label for="rab_item_id_select" class="block text-xs font-medium text-gray-600 mb-1">Item Pekerjaan (Bisa pilih lebih dari satu)</label>
-                            <select name="rab_items[]" id="rab_item_id_select" multiple>
-                                {{-- Opsi akan diisi oleh JavaScript --}}
-                            </select>
+                            <select name="rab_items[]" id="rab_item_id_select" multiple></select>
                         </div>
                     </div>
                 </div>
@@ -107,29 +95,14 @@
 <script src="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/js/tom-select.complete.min.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function () {
-    // MENYALIN "OTAK" JAVASCRIPT DARI HALAMAN TAMBAH AKTIVITAS
     const tomSelectMain = new TomSelect("#main_rab_item_select", {
         placeholder: 'Cari Sub Item Utama...',
-        valueField: 'id',
-        labelField: 'name',
-        searchField: 'name',
-        load: function(query, callback) {
-            const packageId = {{ $package->id }};
-            fetch(`/api/packages/${packageId}/main-rab-items?q=${encodeURIComponent(query)}`)
-                .then(response => response.json())
-                .then(data => {
-                    callback(data);
-                }).catch(() => {
-                    callback();
-                });
-        },
     });
 
     const tomSelectChild = new TomSelect("#rab_item_id_select", {
         placeholder: 'Pilih Item Pekerjaan...',
         plugins: ['remove_button']
     });
-
     tomSelectChild.disable();
 
     tomSelectMain.on('change', async function(parentId) {
@@ -139,8 +112,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
         if (!parentId) return;
 
-        tomSelectChild.load(callback => callback([], [])); // Show loading
-        
+        tomSelectChild.addOption({ value: '', text: 'Memuat...' });
+        tomSelectChild.refreshOptions(false);
+
         try {
             const response = await fetch(`/api/rab-items/${parentId}/children`);
             const children = await response.json();
@@ -156,6 +130,7 @@ document.addEventListener('DOMContentLoaded', function () {
             tomSelectChild.enable();
         } catch (error) {
             console.error('Gagal memuat item pekerjaan:', error);
+            tomSelectChild.clearOptions();
             tomSelectChild.addOption({ value: '', text: 'Gagal memuat data' });
         }
     });

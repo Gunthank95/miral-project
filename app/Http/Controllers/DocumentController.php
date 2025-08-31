@@ -59,15 +59,12 @@ class DocumentController extends Controller
         ]);
     }
 	
-	/**
-	 * TAMBAHKAN: Fungsi untuk menampilkan form pengajuan dokumen detail (Shop Drawing, dll).
-	 */
 	public function createSubmission(Request $request, \App\Models\Package $package)
 	{
-		// Ambil data RAB (Sub Item Utama) untuk dropdown pertama
+		// PERBAIKI: Mengambil data RAB (Sub Item Utama) untuk dropdown pertama
 		$mainRabItems = \App\Models\RabItem::where('package_id', $package->id)
 			->whereNull('parent_id')
-			->orderBy('item_number')
+			->orderBy('item_number', 'asc') // Mengurutkan berdasarkan nomor item
 			->get();
 
 		return view('documents.create_submission', [
@@ -75,7 +72,6 @@ class DocumentController extends Controller
 			'mainRabItems' => $mainRabItems,
 		]);
 	}
-
 
     /**
      * Menyimpan dokumen baru.

@@ -96,11 +96,14 @@ class ApiController extends Controller
 		$items = \App\Models\RabItem::where('package_id', $package->id)
 			->whereNull('parent_id')
 			->when($searchQuery, function ($query, $searchQuery) {
-				return $query->where('name', 'like', '%' . $searchQuery . '%');
+				// PERBAIKI: Menggunakan kolom 'item_name'
+				return $query->where('item_name', 'like', '%' . $searchQuery . '%');
 			})
-			->orderBy('name')
-			->limit(50) // Batasi hasil agar tidak terlalu banyak
-			->get(['id', 'name']);
+			// PERBAIKI: Menggunakan kolom 'item_name'
+			->orderBy('item_name')
+			->limit(50)
+			// PERBAIKI: Mengambil 'item_name' dan memberinya alias 'name' agar cocok dengan JavaScript
+			->get(['id', 'item_name as name']);
 
 		return response()->json($items);
 	}
