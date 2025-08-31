@@ -10,22 +10,21 @@ use Illuminate\Support\Facades\Storage;
 
 class ApprovalController extends Controller
 {
-    public function index()
+	public function index()
 	{
-		// HAPUS SEMUA KODE LAMA DI DALAM FUNGSI INI
+		// Mengambil ID Paket Pekerjaan yang sedang aktif dari session
+		$currentPackageId = session('current_package_id');
 
-		// GANTI DENGAN KODE BARU INI
-		$currentProjectId = session('current_project_id');
+		// Menyiapkan variabel kosong sebagai default
+		$pendingDocuments = collect(); 
 
-		$pendingDocuments = collect(); // Buat koleksi kosong sebagai default
-
-		if ($currentProjectId) {
-			// HANYA JIKA ADA PROYEK TERPILIH, baru kita cari dokumennya
-			$pendingDocuments = \App\Models\Document::where('project_id', $currentProjectId)
+		if ($currentPackageId) {
+			// HANYA JIKA ADA PAKET YANG DIPILIH, baru kita cari dokumennya
+			$pendingDocuments = \App\Models\Document::where('package_id', $currentPackageId)
 				->where('requires_approval', true)
 				->where('status', 'pending')
-				->with('uploader')
-				->latest()
+				->with('user') // Mengambil info pengunggah
+				->latest() // Mengurutkan dari yang terbaru
 				->get();
 		}
 
@@ -33,7 +32,7 @@ class ApprovalController extends Controller
 			'pendingDocuments' => $pendingDocuments
 		]);
 	}
-	
+
 	public function storeReview(Request $request, Document $document)
 	{
 		$request->validate([

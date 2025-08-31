@@ -10,30 +10,32 @@ use Illuminate\Support\Facades\Auth;
 class DocumentController extends Controller
 {
     public function index(Request $request, Package $package)
-    {
-        $categories = [
-            'for_con' => 'For-Con Drawing',
-            'metode_kerja' => 'Metode Kerja',
-            'shop_drawing' => 'Shop Drawing',
-            'as_built' => 'As-Built Drawing',
-        ];
+	{
+		// 1. Siapkan daftar kategori. Kunci (key) sekarang menggunakan garis bawah
+		// agar cocok dengan URL dan tab di halaman tampilan.
+		$categories = [
+			'shop_drawing' => 'Shop Drawing',
+			'as_built_drawing' => 'As-Built Drawing',
+			'for_con_drawing' => 'For-Con Drawing',
+			'metode_kerja' => 'Metode Kerja',
+			'lainnya' => 'Lainnya',
+		];
 
-        $activeCategoryKey = $request->input('category', array_key_first($categories));
+		// 2. Tentukan tab mana yang sedang aktif, defaultnya adalah 'shop_drawing'
+		$activeCategory = $request->input('category', 'shop_drawing');
 
-        $documents = $package->documents()
-                             ->where('category', $categories[$activeCategoryKey])
-                             ->with('user')
-                             ->latest()
-                             ->get();
+		// 3. Ambil SEMUA dokumen dari paket ini sekaligus
+		$allDocuments = \App\Models\Document::where('package_id', $package->id)
+			->with('rabItems', 'user') // Ambil juga relasi yang dibutuhkan
+			->latest()
+			->get();
 
-        return view('documents.index', [
-            'package' => $package,
-            'documents' => $documents,
-            'categories' => $categories,
-            'activeCategory' => $activeCategoryKey,
-        ]);
-    }
-
+		// 4. Buat variabel $documentsByCategory dengan mengelompokkan dokumen-dokumen tersebut
+		$documentsByCategory = $allDocuments->groupBy('category');
+		
+		// 5. Kirim semua data yang sudah siap ke halaman tampilan
+		return view('documents.index', compact('package', 'documentsByCategory', 'categories', 'activeCategory'));
+	}
     /**
      * Menampilkan form untuk mengunggah dokumen baru.
      */

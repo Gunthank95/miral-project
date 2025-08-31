@@ -34,7 +34,7 @@
                                 <p class="text-gray-500 text-xs">{{ $document->description }}</p>
                             </td>
                             <td class="py-2 px-3 border">{{ $document->category }}</td>
-                            <td class="py-2 px-3 border">{{ $document->uploader->name ?? 'N/A' }}</td>
+                            <td class="py-2 px-3 border">{{ $document->user->name ?? 'N/A' }}</td>
                             <td class="py-2 px-3 border text-center">{{ $document->created_at->isoFormat('D MMM YYYY, HH:mm') }}</td>
                             <td class="py-2 px-3 border text-center">
                                 {{-- Tombol "Periksa" untuk membuka modal --}}

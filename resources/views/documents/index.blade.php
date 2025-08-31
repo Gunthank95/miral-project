@@ -64,35 +64,56 @@
                         <th class="text-left px-4 py-2">Aksi</th>
                     </tr>
                 </thead>
-                <tbody>
-                    @forelse ($documents as $document)
-                        <tr class="border-t">
-                            <td class="px-4 py-2 font-semibold">{{ $document->name }}</td>
-                            <td class="text-center px-4 py-2">{{ $document->revision }}</td>
-                            <td class="px-4 py-2">
-                                @if ($document->status == 'pending')
-                                    <span class="bg-yellow-200 text-yellow-800 text-xs font-semibold px-2.5 py-0.5 rounded">Pending</span>
-                                @elseif ($document->status == 'approved')
-                                    <span class="bg-green-200 text-green-800 text-xs font-semibold px-2.5 py-0.5 rounded">Approved</span>
-                                @else
-                                    <span class="bg-red-200 text-red-800 text-xs font-semibold px-2.5 py-0.5 rounded">Rejected</span>
-                                @endif
-                            </td>
-                            <td class="px-4 py-2">{{ $document->user->name ?? 'N/A' }}</td>
-                            <td class="px-4 py-2">{{ $document->created_at->isoFormat('D MMM YYYY') }}</td>
-                            <td class="px-4 py-2">
-                                <a href="#" class="text-blue-600 hover:underline text-xs">Lihat Detail</a>
-                            </td>
-                        </tr>
-                    @empty
-                        <tr>
-                            <td colspan="6" class="text-center p-4 text-gray-500">
-                                Belum ada dokumen untuk kategori ini.
-                            </td>
-                        </tr>
-                    @endforelse
-                </tbody>
-            </table>
+                {{-- GANTI SELURUH BLOK <tbody> UNTUK SHOP DRAWING --}}
+				<tbody>
+					@forelse($documentsByCategory['Shop Drawing'] ?? [] as $document)
+						<tr class="border-t">
+							<td class="py-2 px-3 border">
+								<a href="{{ asset('storage/' . $document->file_path) }}" target="_blank" class="text-blue-600 hover:underline font-semibold">{{ $document->title }}</a>
+								<p class="text-xs text-gray-600 mt-1">{{ $document->description }}</p>
+							</td>
+							<td class="py-2 px-3 border align-top">
+								@if($document->rabItems->isNotEmpty())
+									<ul class="list-disc list-inside text-xs space-y-1">
+										@foreach($document->rabItems as $rabItem)
+											<li>{{ $rabItem->item_name }}</li>
+										@endforeach
+									</ul>
+								@endif
+							</td>
+							<td class="py-2 px-3 border align-top">
+								<p class="font-medium">{{ $document->document_number }}</p>
+								<p class="text-xs text-gray-500">{{ $document->created_at->isoFormat('D MMM YYYY') }}</p>
+							</td>
+							<td class="py-2 px-3 border text-center align-top">
+								<span class="px-2 py-1 text-xs font-semibold rounded-full 
+									@if($document->status == 'pending') bg-yellow-100 text-yellow-800
+									@elseif($document->status == 'approved' || $document->status == 'disetujui') bg-green-100 text-green-800
+									@elseif($document->status == 'rejected' || $document->status == 'ditolak') bg-red-100 text-red-800
+									@else bg-gray-100 text-gray-800 @endif">
+									{{ ucfirst($document->status) }}
+								</span>
+							</td>
+							<td class="py-2 px-3 border text-center align-top">
+								<div class="flex justify-center items-center space-x-2">
+									<a href="{{ route('approvals.index') }}" class="text-green-600 hover:text-green-800" title="Proses Persetujuan">
+										<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" /></svg>
+									</a>
+									<form action="{{ route('documents.destroy', ['package' => $package->id, 'document' => $document->id]) }}" method="POST" onsubmit="return confirm('Apakah Anda yakin ingin menghapus dokumen ini?');">
+										@csrf
+										@method('DELETE')
+										<button type="submit" class="text-red-600 hover:text-red-800" title="Hapus">
+											<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+										</button>
+									</form>
+								</div>
+							</td>
+						</tr>
+					@empty
+						<tr><td colspan="5" class="text-center py-4">Belum ada Shop Drawing yang diunggah.</td></tr>
+					@endforelse
+				</tbody>
+			</table>
         </div>
     </main>
 </div>
