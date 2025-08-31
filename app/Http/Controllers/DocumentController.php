@@ -58,36 +58,82 @@ class DocumentController extends Controller
             'categoryName' => $categories[$categoryKey],
         ]);
     }
+	
+	/**
+	 * TAMBAHKAN: Fungsi untuk menampilkan form pengajuan dokumen detail (Shop Drawing, dll).
+	 */
+	public function createSubmission(Request $request, \App\Models\Package $package)
+	{
+		// Ambil data RAB (Sub Item Utama) untuk dropdown pertama
+		$mainRabItems = \App\Models\RabItem::where('package_id', $package->id)
+			->whereNull('parent_id')
+			->orderBy('item_number')
+			->get();
+
+		return view('documents.create_submission', [
+			'package' => $package,
+			'mainRabItems' => $mainRabItems,
+		]);
+	}
+
 
     /**
      * Menyimpan dokumen baru.
      */
-    public function store(Request $request, Package $package)
-    {
-        $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'category' => 'required|string',
-            'document_file' => 'required|file|mimes:pdf,jpg,jpeg,png,dwg,xls,xlsx,doc,docx|max:20480', // Maks 20MB
-        ]);
+    public function store(Request $request)
+	{
+		// (VALIDASI BIARKAN SAMA SEPERTI KODE LAMA ANDA)
+		$request->validate([
+			'package_id' => 'required|exists:packages,id',
+			'category' => 'required|string',
+			'title' => 'required|string|max:255',
+			'description' => 'nullable|string',
+			'file' => 'required|file|mimes:pdf,jpg,jpeg,png,dwg|max:20480', // Max 20MB
+		]);
 
-        $filePath = $request->file('document_file')->store('documents/' . $package->id, 'public');
+		$package = \App\Models\Package::find($request->package_id);
+		$project = $package->project;
 
-        $package->documents()->create([
-            'user_id' => Auth::id(),
-            'category' => $validated['category'],
-            'name' => $validated['name'],
-            'file_path' => $filePath,
-            'status' => 'pending', // Status default
-        ]);
+		// SIMPAN FILE
+		$filePath = $request->file('file')->store('documents', 'public');
 
-        $categoryKey = array_search($validated['category'], [
-            'for_con' => 'For-Con Drawing',
-            'metode_kerja' => 'Metode Kerja',
-            'shop_drawing' => 'Shop Drawing',
-            'as_built' => 'As-Built Drawing',
-        ]);
+		// TAMBAHKAN: Logika untuk menentukan apakah persetujuan diperlukan
+		// =================================================================
+		$requiresApproval = false;
+		// Jika kategori yang diunggah adalah Shop Drawing atau Metode Kerja
+		if (in_array($request->category, ['Shop Drawing', 'Metode Kerja'])) {
+			$requiresApproval = true;
+		}
+		// =================================================================
 
-        return redirect()->route('documents.index', ['package' => $package->id, 'category' => $categoryKey])
-                         ->with('success', 'Dokumen berhasil diunggah.');
-    }
+		// BUAT DOKUMEN BARU
+		$document = Document::create([
+			'project_id' => $project->id,
+			'package_id' => $package->id,
+			'uploader_id' => \Auth::id(),
+			'category' => $request->category,
+			'title' => $request->title,
+			'description' => $request->description,
+			'file_path' => $filePath,
+			// Status awal sekarang tergantung pada kebutuhan persetujuan
+			'status' => $requiresApproval ? 'pending' : 'approved', 
+			// Simpan penanda ini ke database
+			'requires_approval' => $requiresApproval, 
+		]);
+		
+		// TAMBAHKAN: Jika butuh persetujuan, buat catatan awal di tabel approval
+		// =================================================================
+		if ($requiresApproval) {
+			$document->approvals()->create([
+				'user_id' => \Auth::id(),
+				'role' => 'contractor', // Asumsi pengunggah awal adalah kontraktor
+				'status' => 'submitted', // Status awal di riwayat
+				'notes' => 'Pengajuan awal dari Kontraktor.'
+			]);
+		}
+		// =================================================================
+
+		return redirect()->route('documents.index', ['package' => $package->id])
+						 ->with('success', 'Dokumen berhasil diunggah.');
+	}
 }

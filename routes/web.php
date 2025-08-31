@@ -162,6 +162,16 @@ Route::middleware('auth')->group(function () {
 	Route::get('/project/{project}/invitations', [InvitationController::class, 'index'])->name('invitations.index');
 	Route::post('/project/{project}/invitations', [InvitationController::class, 'store'])->name('invitations.store');
     Route::get('/project/{project}/users', [UserController::class, 'index'])->name('users.index');
+	
+	// TAMBAHKAN ROUTE INI UNTUK HALAMAN PERSETUJUAN
+	// Route untuk menampilkan halaman persetujuan
+	Route::get('/approvals', [\App\Http\Controllers\ApprovalController::class, 'index'])->name('approvals.index');
+
+	// TAMBAHKAN ROUTE INI untuk menyimpan hasil review dari MK
+	Route::post('/approvals/{document}/review', [\App\Http\Controllers\ApprovalController::class, 'storeReview'])->name('approvals.storeReview');
+	
+	// Route untuk menampilkan form pengajuan Shop Drawing yang detail
+	Route::get('/packages/{package}/documents/create-submission', [\App\Http\Controllers\DocumentController::class, 'createSubmission'])->name('documents.createSubmission');
 });
 
 // --- ROUTE UNTUK API INTERNAL (Perlu Login) ---

@@ -46,6 +46,9 @@
             <a href="{{ route('documents.create', ['package' => $package->id, 'category' => $activeCategory]) }}" class="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700">
                 + Unggah {{ $categories[$activeCategory] }} Baru
             </a>
+			<a href="{{ route('documents.createSubmission', ['package' => $package->id]) }}" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded">
+				+ Ajukan Shop Drawing
+			</a>
         </div>
 
         {{-- Konten Tab (Tabel Dokumen) --}}

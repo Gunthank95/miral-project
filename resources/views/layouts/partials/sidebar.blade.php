@@ -48,6 +48,13 @@
                     <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0011.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>
                     <span>Dokumen</span>
                 </a>
+				
+				<a class="flex items-center mt-2 py-2 px-4 text-gray-300 rounded-lg hover:bg-gray-700 hover:text-white {{ request()->routeIs('approvals.index*') ? 'bg-gray-700' : '' }}" href="{{ route('approvals.index') }}">
+					<svg class="h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+					</svg>
+					<span class="mx-3">Persetujuan</span>
+				</a>
             </div>
         </div>
 

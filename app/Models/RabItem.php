@@ -38,4 +38,9 @@ class RabItem extends Model
     {
         return $this->parent()->with('ancestors');
     }
+	
+	public function documents()
+	{
+		return $this->belongsToMany(Document::class, 'document_rab_item');
+	}
 }

@@ -4,7 +4,7 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-class AddSubmissionDetailsToDocumentsTable extends Migration
+class AddRequiresApprovalToDocumentsTable extends Migration
 {
     /**
      * Run the migrations.
@@ -12,12 +12,13 @@ class AddSubmissionDetailsToDocumentsTable extends Migration
      * @return void
      */
     public function up()
-	{
-		Schema::table('documents', function (Blueprint $table) {
-			// Kolom untuk mencatat siapa yang harus mereview/menyetujui
-			$table->foreignId('submitted_to_user_id')->nullable()->constrained('users')->onDelete('set null')->after('user_id');
-		});
-	}
+{
+    Schema::table('documents', function (Blueprint $table) {
+        // TAMBAHKAN: Kolom baru untuk menandai apakah dokumen butuh persetujuan.
+        // Diletakkan setelah kolom 'category'. Secara default, nilainya false (tidak butuh).
+        $table->boolean('requires_approval')->default(false)->after('category');
+    });
+}
 
     /**
      * Reverse the migrations.

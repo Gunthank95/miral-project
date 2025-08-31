@@ -19,8 +19,12 @@ class Document extends Model
 		'user_id',
 		'submitted_to', // <-- Diubah
 		'category',
+		'requires_approval',
+		'title',
+		'document_number',      // <-- TAMBAHKAN
+		'drawing_numbers',      // <-- TAMBAHKAN
+		'addressed_to', 
 		'name',
-		'document_number', // <-- Ditambahkan
 		'file_path',
 		'revision',
 		'status',
@@ -34,4 +38,9 @@ class Document extends Model
     {
         return $this->belongsTo(User::class);
     }
+	
+	public function rabItems()
+	{
+		return $this->belongsToMany(RabItem::class, 'document_rab_item');
+	}
 }
