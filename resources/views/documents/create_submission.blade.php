@@ -1,5 +1,22 @@
 @extends('layouts.app')
 
+@push('styles')
+<link href="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/css/tom-select.css" rel="stylesheet">
+<style>
+    .ts-control {
+        border-radius: 0.375rem;
+        border-color: #D1D5DB;
+        padding: 0.5rem 0.75rem;
+    }
+    .ts-dropdown {
+        font-size: 0.875rem;
+    }
+    .ts-input::placeholder {
+        color: #9CA3AF;
+    }
+</style>
+@endpush
+
 @section('content')
 <div class="container mx-auto px-4 py-8">
     <x-slot name="header">
@@ -8,15 +25,14 @@
         </h2>
     </x-slot>
 
-    <div class="max-w-4xl mx-auto">
+    {{-- MENYALIN STRUKTUR "BINGKAI" DARI HALAMAN TAMBAH AKTIVITAS --}}
+    <div class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
         <div class="bg-white overflow-hidden shadow-xl sm:rounded-lg p-6">
             <h1 class="text-2xl font-bold mb-6">Form Pengajuan Shop Drawing</h1>
 
-            {{-- Form akan mengirim data ke fungsi 'store' yang sudah ada --}}
-            <form action="{{ route('documents.store') }}" method="POST" enctype="multipart/form-data" class="space-y-6">
+            <form action="{{ route('documents.store', ['package' => $package->id]) }}" method="POST" enctype="multipart/form-data" class="space-y-6">
                 @csrf
                 <input type="hidden" name="package_id" value="{{ $package->id }}">
-                {{-- Kita set kategori secara otomatis di sini --}}
                 <input type="hidden" name="category" value="Shop Drawing">
 
                 {{-- No. Dokumen & No. Gambar --}}
@@ -36,17 +52,13 @@
                     <label class="block text-sm font-medium text-gray-700 mb-2">Untuk Pekerjaan</label>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
-                            <label for="main_rab_item_select" class="block text-xs font-medium text-gray-600">Sub Item Utama</label>
-                            <select id="main_rab_item_select" class="mt-1 block w-full">
-                                <option value="">-- Pilih Sub Item --</option>
-                                @foreach($mainRabItems as $item)
-                                    <option value="{{ $item->id }}">{{ $item->name }}</option>
-                                @endforeach
+                            <label for="main_rab_item_select" class="block text-xs font-medium text-gray-600 mb-1">Sub Item Utama</label>
+                            <select id="main_rab_item_select">
+                                {{-- Opsi akan diisi oleh JavaScript --}}
                             </select>
                         </div>
                         <div>
-                            <label for="rab_item_id_select" class="block text-xs font-medium text-gray-600">Item Pekerjaan (Bisa pilih lebih dari satu)</label>
-                            {{-- Nama input adalah 'rab_items[]' untuk menandakan bisa lebih dari satu --}}
+                            <label for="rab_item_id_select" class="block text-xs font-medium text-gray-600 mb-1">Item Pekerjaan (Bisa pilih lebih dari satu)</label>
                             <select name="rab_items[]" id="rab_item_id_select" multiple>
                                 {{-- Opsi akan diisi oleh JavaScript --}}
                             </select>
@@ -77,7 +89,7 @@
                 </div>
 
                 {{-- Tombol Aksi --}}
-                <div class="flex justify-end space-x-4">
+                <div class="flex justify-end space-x-4 pt-4">
                     <a href="{{ route('documents.index', ['package' => $package->id]) }}" class="bg-white py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50">
                         Batal
                     </a>
@@ -89,6 +101,64 @@
         </div>
     </div>
 </div>
-
-{{-- Kita akan tambahkan JavaScript untuk dropdown di sini pada langkah berikutnya --}}
 @endsection
+
+@push('scripts')
+<script src="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/js/tom-select.complete.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    // MENYALIN "OTAK" JAVASCRIPT DARI HALAMAN TAMBAH AKTIVITAS
+    const tomSelectMain = new TomSelect("#main_rab_item_select", {
+        placeholder: 'Cari Sub Item Utama...',
+        valueField: 'id',
+        labelField: 'name',
+        searchField: 'name',
+        load: function(query, callback) {
+            const packageId = {{ $package->id }};
+            fetch(`/api/packages/${packageId}/main-rab-items?q=${encodeURIComponent(query)}`)
+                .then(response => response.json())
+                .then(data => {
+                    callback(data);
+                }).catch(() => {
+                    callback();
+                });
+        },
+    });
+
+    const tomSelectChild = new TomSelect("#rab_item_id_select", {
+        placeholder: 'Pilih Item Pekerjaan...',
+        plugins: ['remove_button']
+    });
+
+    tomSelectChild.disable();
+
+    tomSelectMain.on('change', async function(parentId) {
+        tomSelectChild.clear();
+        tomSelectChild.clearOptions();
+        tomSelectChild.disable();
+
+        if (!parentId) return;
+
+        tomSelectChild.load(callback => callback([], [])); // Show loading
+        
+        try {
+            const response = await fetch(`/api/rab-items/${parentId}/children`);
+            const children = await response.json();
+            
+            tomSelectChild.clearOptions();
+            children.forEach(option => {
+                tomSelectChild.addOption({
+                    value: option.id,
+                    text: option.name,
+                    disabled: option.is_title
+                });
+            });
+            tomSelectChild.enable();
+        } catch (error) {
+            console.error('Gagal memuat item pekerjaan:', error);
+            tomSelectChild.addOption({ value: '', text: 'Gagal memuat data' });
+        }
+    });
+});
+</script>
+@endpush

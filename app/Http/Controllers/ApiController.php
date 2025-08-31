@@ -88,4 +88,20 @@ class ApiController extends Controller
         }
         return $options;
     }
+	
+	public function getMainRabItems(Request $request, \App\Models\Package $package)
+	{
+		$searchQuery = $request->input('q');
+
+		$items = \App\Models\RabItem::where('package_id', $package->id)
+			->whereNull('parent_id')
+			->when($searchQuery, function ($query, $searchQuery) {
+				return $query->where('name', 'like', '%' . $searchQuery . '%');
+			})
+			->orderBy('name')
+			->limit(50) // Batasi hasil agar tidak terlalu banyak
+			->get(['id', 'name']);
+
+		return response()->json($items);
+	}
 }

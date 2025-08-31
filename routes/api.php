@@ -17,5 +17,6 @@ use App\Http\Controllers\ScheduleController;
 	Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
 		return $request->user();
 		
+	Route::get('/packages/{package}/main-rab-items', [\App\Http\Controllers\ApiController::class, 'getMainRabItems']);
 	Route::get('/schedule-data/{package}', [ScheduleController::class, 'getScheduleData']);
 });
