@@ -18,6 +18,8 @@
 		#progress-table.details-hidden .contract-column {
 			display: none;
 		}
+		
+		[x-cloak] { display: none !important; }
 	</style>
 </head>
 <body class="bg-gray-100">

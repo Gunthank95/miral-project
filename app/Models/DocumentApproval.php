@@ -34,4 +34,9 @@ class DocumentApproval extends Model
     {
         return $this->hasMany(DocumentApproval::class, 'parent_id');
     }
+	
+	public function user()
+    {
+        return $this->belongsTo(User::class);
+    }
 }

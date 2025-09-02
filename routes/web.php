@@ -169,9 +169,13 @@ Route::middleware('auth')->group(function () {
 
 	// TAMBAHKAN ROUTE INI untuk menyimpan hasil review dari MK
 	Route::post('/approvals/{document}/review', [\App\Http\Controllers\ApprovalController::class, 'storeReview'])->name('approvals.storeReview');
+	Route::post('/documents/{document}/review', [\App\Http\Controllers\DocumentController::class, 'storeReview'])->name('documents.storeReview');
 	
 	// Route untuk menampilkan form pengajuan Shop Drawing yang detail
 	Route::get('/packages/{package}/documents/create-submission', [\App\Http\Controllers\DocumentController::class, 'createSubmission'])->name('documents.createSubmission');
+	
+	Route::get('/packages/{package}/documents/{document}/edit', [\App\Http\Controllers\DocumentController::class, 'edit'])->name('documents.edit');
+	Route::put('/documents/{document}', [\App\Http\Controllers\DocumentController::class, 'update'])->name('documents.update');
 });
 
 // --- ROUTE UNTUK API INTERNAL (Perlu Login) ---

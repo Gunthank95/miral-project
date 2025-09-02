@@ -26,7 +26,7 @@ class DocumentController extends Controller
 
 		// 3. Ambil SEMUA dokumen dari paket ini sekaligus
 		$allDocuments = \App\Models\Document::where('package_id', $package->id)
-			->with('rabItems', 'user') // Ambil juga relasi yang dibutuhkan
+			->with(['rabItems', 'user', 'approvals.user']) // PERBAIKI: Ambil juga data 'approvals' dan 'user' yang me-review
 			->latest()
 			->get();
 
@@ -139,4 +139,86 @@ class DocumentController extends Controller
 		return redirect()->route('documents.index', ['package' => $package->id])
 						 ->with('success', 'Dokumen berhasil diunggah.');
 	}
+	
+	public function storeReview(Request $request, Document $document)
+	{
+		$request->validate([
+			'status' => 'required|string',
+			'notes' => 'nullable|string',
+			'continue_to_owner' => 'required|boolean',
+		]);
+
+		// Cari pengajuan awal dari kontraktor
+		$originalSubmission = $document->approvals()->where('status', 'submitted')->first();
+
+		if ($originalSubmission) {
+			// Buat catatan review baru sebagai "anak" dari pengajuan awal
+			$document->approvals()->create([
+				'parent_id' => $originalSubmission->id,
+				'user_id' => \Auth::id(),
+				'status' => $request->status,
+				'notes' => $request->notes,
+			]);
+		}
+
+		// Update status dokumen utama
+		$document->update(['status' => $request->status]);
+
+		// Logika untuk Owner akan kita tambahkan nanti
+
+		return back()->with('success', 'Review berhasil disimpan.');
+	}
+	
+	public function destroy(Package $package, Document $document)
+    {
+        // Hapus file dari penyimpanan
+        \Illuminate\Support\Facades\Storage::disk('public')->delete($document->file_path);
+        
+        // Hapus catatan dari database
+        $document->delete();
+
+        return back()->with('success', 'Dokumen berhasil dihapus.');
+    }
+	
+	/**
+     * TAMBAHKAN: Fungsi untuk menampilkan halaman edit dokumen.
+     */
+    public function edit(Package $package, Document $document)
+    {
+        // Ambil data RAB (Sub Item Utama) untuk dropdown
+        $mainRabItems = \App\Models\RabItem::where('package_id', $package->id)
+            ->whereNull('parent_id')
+            ->orderBy('item_number', 'asc')
+            ->get();
+        
+        // Ambil ID dari item pekerjaan yang sudah terhubung dengan dokumen ini
+        $selectedRabItems = $document->rabItems()->pluck('rab_items.id')->toArray();
+
+        return view('documents.edit', compact('package', 'document', 'mainRabItems', 'selectedRabItems'));
+    }
+
+    /**
+     * TAMBAHKAN: Fungsi untuk menyimpan perubahan pada dokumen.
+     */
+    public function update(Request $request, Document $document)
+    {
+        $validated = $request->validate([
+            'title' => 'required|string|max:255',
+            'description' => 'nullable|string',
+            'document_number' => 'nullable|string|max:255',
+            'drawing_numbers' => 'nullable|string',
+            'rab_items' => 'nullable|array',
+        ]);
+
+        $document->update($validated);
+
+        if ($request->has('rab_items')) {
+            $document->rabItems()->sync($request->rab_items);
+        } else {
+            $document->rabItems()->detach();
+        }
+
+        return redirect()->route('documents.index', ['package' => $document->package_id])
+                         ->with('success', 'Dokumen berhasil diperbarui.');
+    }
 }
