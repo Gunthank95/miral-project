@@ -1,4 +1,3 @@
-@php dd($document); @endphp
 @extends('layouts.app')
 
 @push('styles')
@@ -49,7 +48,7 @@
                         <div>
                             <label for="rab_item_id_select" class="block text-xs font-medium text-gray-600 mb-1">Item Pekerjaan</label>
                             <select name="rab_items[]" id="rab_item_id_select" multiple>
-                                {{-- Opsi diisi JavaScript, dan akan dipilih otomatis --}}
+                                {{-- Opsi diisi JavaScript --}}
                             </select>
                         </div>
                     </div>
@@ -58,7 +57,6 @@
                 {{-- Judul & Deskripsi --}}
                 <div>
                     <label for="title" class="block text-sm font-medium text-gray-700">Judul Dokumen</label>
-                    {{-- PERBAIKI: Tambahkan 'value' untuk mengisi data --}}
                     <input type="text" name="title" id="title" value="{{ old('title', $document->title) }}" class="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md" required>
                 </div>
                 <div>
@@ -86,14 +84,23 @@
 <script src="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/js/tom-select.complete.min.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function () {
+    // PERBAIKI: Menggunakan logika JavaScript yang benar
     const tomSelectMain = new TomSelect("#main_rab_item_select", { placeholder: 'Cari Sub Item Utama...' });
-    const tomSelectChild = new TomSelect("#rab_item_id_select", { placeholder: 'Pilih Item Pekerjaan...', plugins: ['remove_button'] });
+    const tomSelectChild = new TomSelect("#rab_item_id_select", {
+        placeholder: 'Pilih Item Pekerjaan...',
+        plugins: ['remove_button'],
+        // "Ajari" dropdown cara menampilkan spasi untuk hirarki
+        render: {
+            item: (data, escape) => '<div>' + data.text.replace(/&nbsp;/g, ' ') + '</div>',
+            option: (data, escape) => '<div>' + data.text.replace(/&nbsp;/g, ' ') + '</div>',
+        }
+    });
 
-    // Ambil data item yang sudah terpilih dari PHP
     const initiallySelected = @json($selectedRabItems ?? []);
-    
-    // Fungsi untuk memuat semua item anak dari semua sub item utama dan memilih yang sudah ada
-    async function initializeChildSelect() {
+    let allChildOptions = {}; // Tempat menyimpan semua opsi anak
+
+    // Fungsi untuk memuat semua item anak dan menyimpannya
+    async function preloadAllChildItems() {
         tomSelectChild.disable();
         tomSelectChild.clearOptions();
         
@@ -105,15 +112,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 const promise = fetch(`/api/rab-items/${parentId}/children`)
                     .then(response => response.json())
                     .then(children => {
-                        children.forEach(option => {
-                            if (!tomSelectChild.getOption(option.id)) {
-                                tomSelectChild.addOption({
-                                    value: option.id,
-                                    text: option.name,
-                                    disabled: option.is_title
-                                });
-                            }
-                        });
+                        allChildOptions[parentId] = children; // Simpan hasilnya
                     });
                 promises.push(promise);
             }
@@ -122,13 +121,28 @@ document.addEventListener('DOMContentLoaded', function () {
         // Tunggu sampai semua data anak berhasil diambil
         await Promise.all(promises);
         
-        // SETELAH SEMUA OPSI TERSEDIA, baru kita atur item yang terpilih
+        // SETELAH SEMUA OPSI TERSEDIA, baru kita isi dropdown dan atur item yang terpilih
+        const allOptionsFlat = Object.values(allChildOptions).flat();
+        updateChildOptions(allOptionsFlat);
         tomSelectChild.setValue(initiallySelected);
+    }
+
+    // Fungsi untuk mengupdate dropdown anak
+    function updateChildOptions(options) {
+        options.forEach(option => {
+            if (!tomSelectChild.getOption(option.id)) {
+                tomSelectChild.addOption({
+                    value: option.id,
+                    text: option.name,
+                    disabled: option.is_title
+                });
+            }
+        });
         tomSelectChild.enable();
     }
-    
-    // Panggil fungsi inisialisasi saat halaman pertama kali dimuat
-    initializeChildSelect();
+
+    // Panggil fungsi preload saat halaman pertama kali dimuat
+    preloadAllChildItems();
 
 });
 </script>
