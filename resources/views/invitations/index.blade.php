@@ -47,10 +47,15 @@
                             @endforeach
                         </select>
                     </div>
-                     <div>
-                        <label for="role_in_project" class="block text-sm font-medium text-gray-700">Jabatan di Proyek</label>
-                        <input type="text" name="role_in_project" id="role_in_project" required class="mt-1 w-full border rounded px-3 py-2 text-sm" placeholder="Contoh: Site Manager">
-                    </div>
+                    <div>
+						<label for="role" class="block text-sm font-medium text-gray-700">Peran Sistem</label>
+						<select name="role" id="role" required class="mt-1 w-full border rounded px-3 py-2 text-sm">
+							<option value="">-- Pilih Peran Sistem --</option>
+							@foreach ($roles as $key => $value)
+								<option value="{{ $key }}">{{ $value }}</option>
+							@endforeach
+						</select>
+					</div>
                     <div>
                         <button type="submit" class="w-full bg-blue-600 text-white py-2 rounded text-sm hover:bg-blue-700">
                             Kirim Undangan

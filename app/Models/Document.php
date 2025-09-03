@@ -29,6 +29,7 @@ class Document extends Model
 		'revision',
 		'status',
 		'notes', // <-- Ditambahkan
+		'parent_id',
 	];
 
     /**

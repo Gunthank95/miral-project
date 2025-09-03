@@ -83,4 +83,29 @@ class User extends Authenticatable
     {
         return $this->hasOne(Personnel::class);
     }
+	
+	
+	/**
+     * Mendapatkan semua peran yang dimiliki pengguna di berbagai proyek.
+     * Ini adalah relasi yang menghubungkan User ke tabel user_project_roles.
+     */
+    public function projectRoles()
+    {
+        return $this->hasMany(UserProjectRole::class);
+    }
+	
+	/**
+	 * Mendapatkan peran (role) pengguna untuk proyek yang spesifik.
+	 *
+	 * @param int $projectId ID dari proyek yang ingin diperiksa.
+	 * @return string|null Nama peran (misal: 'kontraktor', 'mk') atau null jika tidak ditemukan.
+	 */
+	public function getRoleInProject($projectId)
+	{
+		// Cari peran pengguna di dalam tabel user_project_roles
+		$roleRecord = $this->projectRoles()->where('project_id', $projectId)->first();
+
+		// Jika ditemukan, kembalikan nama perannya. Jika tidak, kembalikan null.
+		return $roleRecord ? $roleRecord->role : null;
+	}
 }

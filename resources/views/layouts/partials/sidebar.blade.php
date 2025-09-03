@@ -44,17 +44,28 @@
                     <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>
                     <span>RAB</span>
                 </a>
-                <a href="{{ route('documents.index', $package->id ?? $activeProject->id) }}" class="flex items-center px-4 py-2 text-sm rounded {{ request()->routeIs('documents.index') ? 'bg-blue-500 text-white' : 'text-gray-600 hover:bg-gray-100' }}">
-                    <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0011.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>
-                    <span>Dokumen</span>
-                </a>
-				
-				<a class="flex items-center mt-2 py-2 px-4 text-gray-300 rounded-lg hover:bg-gray-700 hover:text-white {{ request()->routeIs('approvals.index*') ? 'bg-gray-700' : '' }}" href="{{ route('approvals.index') }}">
-					<svg class="h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-					</svg>
-					<span class="mx-3">Persetujuan</span>
-				</a>
+                <div x-data="{ open: {{ request()->routeIs('documents.*') ? 'true' : 'false' }} }">
+					<button @click="open = !open" class="w-full flex justify-between items-center px-4 py-2 text-sm rounded {{ request()->routeIs('documents.*') ? 'bg-blue-500 text-white' : 'text-gray-600 hover:bg-gray-100' }}">
+						<span class="flex items-center">
+							<svg class="w-5 h-5 mr-3" xmlns="http://www.w.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+							</svg>
+							<span>Pusat Persetujuan</span>
+						</span>
+						<svg class="w-4 h-4 transform transition-transform" :class="{ 'rotate-180': open }" fill="none" stroke="currentColor" viewBox="0 0 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+					</button>
+					<div x-show="open" class="pl-8 mt-1 space-y-1">
+						<a href="{{ route('documents.index', ['package' => $package->id ?? $activeProject->id]) }}" class="block px-4 py-2 text-sm rounded {{ request()->routeIs('documents.index') ? 'bg-blue-100 text-blue-800' : 'text-gray-600 hover:bg-gray-100' }}">
+							Shop Drawing
+						</a>
+						<a href="#" class="block px-4 py-2 text-sm rounded text-gray-400 cursor-not-allowed">
+							Persetujuan Material
+						</a>
+						<a href="#" class="block px-4 py-2 text-sm rounded text-gray-400 cursor-not-allowed">
+							Metode Kerja
+						</a>
+					</div>
+				</div>
             </div>
         </div>
 

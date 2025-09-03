@@ -12,9 +12,9 @@
 <div class="container mx-auto px-4 py-8">
     <div class="max-w-4xl mx-auto">
         <div class="bg-white overflow-hidden shadow-xl sm:rounded-lg p-6">
-            <h1 class="text-2xl font-bold mb-6">Edit Dokumen: {{ $document->title }}</h1>
+            <h1 class="text-2xl font-bold mb-6">Edit Dokumen: {{ $shop_drawing->title }}</h1>
 
-            <form action="{{ route('documents.update', ['package' => $package->id, 'document' => $document->id]) }}" method="POST" class="space-y-6">
+            <form action="{{ route('documents.update', ['package' => $package->id, 'shop_drawing' => $shop_drawing->id]) }}" method="POST" class="space-y-6">
                 @csrf
                 @method('PUT')
 
@@ -23,12 +23,12 @@
                     <div>
                         <label for="document_number" class="block text-sm font-medium text-gray-700">No. Dokumen (Surat Pengajuan)</label>
                         {{-- PERBAIKI: Tambahkan 'value' untuk mengisi data --}}
-                        <input type="text" name="document_number" id="document_number" value="{{ old('document_number', $document->document_number) }}" class="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md">
+                        <input type="text" name="document_number" id="document_number" value="{{ old('document_number', $shop_drawing->document_number) }}" class="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md">
                     </div>
                     <div>
                         <label for="drawing_numbers" class="block text-sm font-medium text-gray-700">No. Gambar</label>
                         {{-- PERBAIKI: Tambahkan 'value' untuk mengisi data --}}
-                        <input type="text" name="drawing_numbers" id="drawing_numbers" value="{{ old('drawing_numbers', $document->drawing_numbers) }}" class="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md">
+                        <input type="text" name="drawing_numbers" id="drawing_numbers" value="{{ old('drawing_numbers', $shop_drawing->drawing_numbers) }}" class="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md">
                     </div>
                 </div>
 
@@ -57,12 +57,12 @@
                 {{-- Judul & Deskripsi --}}
                 <div>
                     <label for="title" class="block text-sm font-medium text-gray-700">Judul Dokumen</label>
-                    <input type="text" name="title" id="title" value="{{ old('title', $document->title) }}" class="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md" required>
+                    <input type="text" name="title" id="title" value="{{ old('title', $shop_drawing->title) }}" class="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md" required>
                 </div>
                 <div>
                     <label for="description" class="block text-sm font-medium text-gray-700">Deskripsi</label>
                     {{-- PERBAIKI: Isi textarea dengan data --}}
-                    <textarea name="description" id="description" rows="3" class="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md">{{ old('description', $document->description) }}</textarea>
+                    <textarea name="description" id="description" rows="3" class="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md">{{ old('description', $shop_drawing->description) }}</textarea>
                 </div>
 
                 {{-- Tombol Aksi --}}

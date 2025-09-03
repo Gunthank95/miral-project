@@ -5,22 +5,21 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>@yield('title', 'Miral Project') - Aplikasi Manajemen Proyek</title>
     <script src="https://cdn.tailwindcss.com"></script>
-	<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <link href="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/css/tom-select.css" rel="stylesheet">
-	@stack('styles')
-	<style>
-		/* Sembunyikan kolom yang memiliki kelas .detail-column saat tabel memiliki kelas .details-hidden */
-		#progress-table.details-hidden .detail-column {
-			display: none;
-		}
+    @stack('styles')
+    <style>
+        /* Sembunyikan kolom yang memiliki kelas .detail-column saat tabel memiliki kelas .details-hidden */
+        #progress-table.details-hidden .detail-column {
+            display: none;
+        }
 
-		/* TAMBAHKAN: Sembunyikan juga kolom kontrak saat detail disembunyikan */
-		#progress-table.details-hidden .contract-column {
-			display: none;
-		}
-		
-		[x-cloak] { display: none !important; }
-	</style>
+        /* TAMBAHKAN: Sembunyikan juga kolom kontrak saat detail disembunyikan */
+        #progress-table.details-hidden .contract-column {
+            display: none;
+        }
+        
+        [x-cloak] { display: none !important; }
+    </style>
 </head>
 <body class="bg-gray-100">
     <div id="app">
@@ -85,50 +84,52 @@
             </main>
         </div>
     </div>
-	
-	{{-- JavaScript untuk Tom Select DITAMBAHKAN DI SINI --}}
+    
+    {{-- JavaScript untuk Tom Select --}}
     <script src="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/js/tom-select.complete.min.js"></script>
-	
-	@stack('scripts')
+    
+    {{-- Script "Mesin" Interaktif Alpine.js (SATU KALI DI SINI) --}}
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+
+    @stack('scripts')
 
     {{-- SCRIPT UNTUK SIDEBAR TOGGLE --}}
     <script>
-	document.addEventListener('DOMContentLoaded', function () {
-		const sidebarToggle = document.getElementById('sidebar-toggle');
-		const sidebar = document.getElementById('sidebar');
-		const sidebarOverlay = document.getElementById('sidebar-overlay');
+    document.addEventListener('DOMContentLoaded', function () {
+        const sidebarToggle = document.getElementById('sidebar-toggle');
+        const sidebar = document.getElementById('sidebar');
+        const sidebarOverlay = document.getElementById('sidebar-overlay');
 
-		if (sidebarToggle && sidebar && sidebarOverlay) {
-			sidebarToggle.addEventListener('click', function() {
-				sidebar.classList.toggle('-translate-x-full');
-				sidebarOverlay.classList.toggle('hidden');
-			});
+        if (sidebarToggle && sidebar && sidebarOverlay) {
+            sidebarToggle.addEventListener('click', function() {
+                sidebar.classList.toggle('-translate-x-full');
+                sidebarOverlay.classList.toggle('hidden');
+            });
 
-			sidebarOverlay.addEventListener('click', function() {
-				sidebar.classList.add('-translate-x-full');
-				sidebarOverlay.classList.add('hidden');
-			});
-		}
+            sidebarOverlay.addEventListener('click', function() {
+                sidebar.classList.add('-translate-x-full');
+                sidebarOverlay.classList.add('hidden');
+            });
+        }
 
-		// Event listener untuk tombol detail (jika masih diperlukan di halaman lain)
-		document.body.addEventListener('click', function(event) {
-			if (event.target && event.target.id === 'toggle-details-btn') {
-				const toggleBtn = event.target;
-				const progressTable = document.getElementById('progress-table');
-				const volumeHeader = document.getElementById('volume-header');
-				const weightHeader = document.getElementById('weight-header');
+        document.body.addEventListener('click', function(event) {
+            if (event.target && event.target.id === 'toggle-details-btn') {
+                const toggleBtn = event.target;
+                const progressTable = document.getElementById('progress-table');
+                const volumeHeader = document.getElementById('volume-header');
+                const weightHeader = document.getElementById('weight-header');
 
-				if (!progressTable) return;
+                if (!progressTable) return;
 
-				progressTable.classList.toggle('details-hidden');
+                progressTable.classList.toggle('details-hidden');
 
-				const isHidden = progressTable.classList.contains('details-hidden');
-				toggleBtn.textContent = isHidden ? 'Tampilkan Detail' : 'Sembunyikan Detail';
-				if (volumeHeader) volumeHeader.colSpan = isHidden ? 1 : 3;
-				if (weightHeader) weightHeader.colSpan = isHidden ? 1 : 3;
-			}
-		});
-	});
-	</script>
+                const isHidden = progressTable.classList.contains('details-hidden');
+                toggleBtn.textContent = isHidden ? 'Tampilkan Detail' : 'Sembunyikan Detail';
+                if (volumeHeader) volumeHeader.colSpan = isHidden ? 1 : 3;
+                if (weightHeader) weightHeader.colSpan = isHidden ? 1 : 3;
+            }
+        });
+    });
+    </script>
 </body>
 </html>

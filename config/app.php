@@ -231,5 +231,23 @@ return [
         'View' => Illuminate\Support\Facades\View::class,
 
     ],
-
+	
+	/*
+	|--------------------------------------------------------------------------
+	| Project Roles
+	|--------------------------------------------------------------------------
+	|
+	| Definisikan semua peran yang valid dalam proyek di sini.
+	| Kunci (key) harus dalam format standar (huruf kecil, underscore).
+	| Nilai (value) adalah nama yang akan ditampilkan ke pengguna.
+	|
+	*/
+	'project_roles' => [
+		'owner' => 'Owner',
+		'mk' => 'Manajemen Konstruksi (MK)',
+		'kontraktor' => 'Kontraktor',
+		'konsultan'  => 'Konsultan Lain',
+		'tamu' => 'Tamu',
+    ],
 ];
+	

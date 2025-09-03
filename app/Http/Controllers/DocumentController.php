@@ -10,41 +10,44 @@ use Illuminate\Support\Facades\Auth;
 class DocumentController extends Controller
 {
     public function index(Request $request, Package $package)
-	{
-		// 1. Siapkan daftar kategori. Kunci (key) sekarang menggunakan garis bawah
-		// agar cocok dengan URL dan tab di halaman tampilan.
-		$categories = [
-			'shop_drawing' => 'Shop Drawing',
-			'as_built_drawing' => 'As-Built Drawing',
-			'for_con_drawing' => 'For-Con Drawing',
-			'metode_kerja' => 'Metode Kerja',
-			'lainnya' => 'Lainnya',
-		];
+    {
+        // 1. Siapkan daftar kategori.
+        $categories = [
+            'shop_drawing' => 'Shop Drawing',
+            'as_built_drawing' => 'As-Built Drawing',
+            'for_con_drawing' => 'For-Con Drawing',
+            'metode_kerja' => 'Metode Kerja',
+            'lainnya' => 'Lainnya',
+        ];
 
-		// 2. Tentukan tab mana yang sedang aktif, defaultnya adalah 'shop_drawing'
-		$activeCategory = $request->input('category', 'shop_drawing');
+        // 2. Tentukan tab mana yang sedang aktif.
+        $activeCategory = $request->input('category', 'shop_drawing');
 
-		// 3. Ambil SEMUA dokumen dari paket ini sekaligus
-		$allDocuments = \App\Models\Document::where('package_id', $package->id)
-			->with(['rabItems', 'user', 'approvals.user']) // PERBAIKI: Ambil juga data 'approvals' dan 'user' yang me-review
-			->latest()
-			->get();
+        // 3. Ambil SEMUA dokumen dari paket ini sekaligus.
+        $allDocuments = \App\Models\Document::where('package_id', $package->id)
+            ->with(['rabItems', 'user', 'approvals.user'])
+            ->latest()
+            ->get();
 
-		// 4. Buat variabel $documentsByCategory dengan mengelompokkan dokumen-dokumen tersebut
-		$documentsByCategory = $allDocuments->groupBy('category');
-		
-		// 5. Kirim semua data yang sudah siap ke halaman tampilan
-		return view('documents.index', compact('package', 'documentsByCategory', 'categories', 'activeCategory'));
-	}
+        // 4. Kelompokkan semua dokumen tersebut berdasarkan kategori.
+        $documentsByCategory = $allDocuments->groupBy(function ($item, $key) {
+			// Membuat semua nama kategori menjadi standar: huruf kecil dan pakai underscore
+			return str_replace(' ', '_', strtolower($item->category));
+		});
+        
+        // 5. Kirim semua data yang sudah siap ke halaman tampilan.
+        return view('documents.index', compact('package', 'categories', 'activeCategory', 'documentsByCategory'));
+    }
+	
     /**
      * Menampilkan form untuk mengunggah dokumen baru.
      */
     public function create(Request $request, Package $package)
     {
-        $categoryKey = $request->input('category');
+        $this->authorize('create', Document::class);
+		$categoryKey = $request->input('category');
         $categories = [
             'for_con' => 'For-Con Drawing',
-            'metode_kerja' => 'Metode Kerja',
             'shop_drawing' => 'Shop Drawing',
             'as_built' => 'As-Built Drawing',
         ];
@@ -64,6 +67,7 @@ class DocumentController extends Controller
 	public function createSubmission(Request $request, \App\Models\Package $package)
 	{
 		// PERBAIKI: Mengambil data RAB (Sub Item Utama) untuk dropdown pertama
+		$this->authorize('create', Document::class);
 		$mainRabItems = \App\Models\RabItem::where('package_id', $package->id)
 			->whereNull('parent_id')
 			->orderBy('item_number', 'asc') // Mengurutkan berdasarkan nomor item
@@ -74,6 +78,33 @@ class DocumentController extends Controller
 			'mainRabItems' => $mainRabItems,
 		]);
 	}
+	
+	/**
+     * Menampilkan form untuk mengunggah revisi sebuah dokumen.
+     */
+    public function createRevision(Package $package, Document $document)
+    {
+        // Periksa apakah pengguna berhak membuat dokumen baru (aturan sama dengan membuat dari awal)
+        $this->authorize('create', Document::class);
+
+        // Ambil data RAB (Sub Item Utama) untuk dropdown
+        $mainRabItems = \App\Models\RabItem::where('package_id', $package->id)
+            ->whereNull('parent_id')
+            ->orderBy('item_number', 'asc')
+            ->get();
+        
+        // Ambil ID dari item pekerjaan yang sudah terhubung dengan DOKUMEN ASLI
+        $selectedRabItems = $document->rabItems()->pluck('rab_items.id')->toArray();
+
+        // Kirim data ke view yang sama dengan form pengajuan, 
+        // tapi sekarang kita juga mengirim data '$document' sebagai '$originalDocument'
+        return view('documents.create_submission', [
+            'package' => $package,
+            'mainRabItems' => $mainRabItems,
+            'originalDocument' => $document, // Data dokumen lama untuk mengisi form
+            'selectedRabItems' => $selectedRabItems,
+        ]);
+    }
 
     /**
      * Menyimpan dokumen baru.
@@ -81,6 +112,7 @@ class DocumentController extends Controller
     public function store(Request $request)
 	{
 		// (VALIDASI BIARKAN SAMA SEPERTI KODE LAMA ANDA)
+		$this->authorize('create', Document::class);
 		$request->validate([
 			'package_id' => 'required|exists:packages,id',
 			'category' => 'required|string',
@@ -140,34 +172,87 @@ class DocumentController extends Controller
 						 ->with('success', 'Dokumen berhasil diunggah.');
 	}
 	
-	public function storeReview(Request $request, Document $document)
-	{
-		$request->validate([
-			'status' => 'required|string',
-			'notes' => 'nullable|string',
-			'continue_to_owner' => 'required|boolean',
-		]);
+	/**
+     * Menyimpan dokumen baru yang diajukan melalui form detail (submission form).
+     * Fungsi ini bisa menangani dokumen baru maupun dokumen revisi.
+     */
+    public function storeSubmission(Request $request, Package $package)
+    {
+        $this->authorize('create', Document::class);
 
-		// Cari pengajuan awal dari kontraktor
-		$originalSubmission = $document->approvals()->where('status', 'submitted')->first();
+        $validated = $request->validate([
+            'title' => 'required|string|max:255',
+            'category' => 'required|string',
+            'document_number' => 'nullable|string|max:255',
+            'drawing_numbers' => 'nullable|string',
+            'file' => 'required|file|mimes:pdf,dwg,jpg,png,zip,rar|max:20480',
+            'rab_items' => 'nullable|array',
+            'parent_id' => 'nullable|exists:documents,id',
+        ]);
 
-		if ($originalSubmission) {
-			// Buat catatan review baru sebagai "anak" dari pengajuan awal
-			$document->approvals()->create([
-				'parent_id' => $originalSubmission->id,
-				'user_id' => \Auth::id(),
-				'status' => $request->status,
-				'notes' => $request->notes,
-			]);
-		}
+        $filePath = $request->file('file')->store('documents', 'public');
 
-		// Update status dokumen utama
-		$document->update(['status' => $request->status]);
+        // Menyiapkan data dasar untuk dokumen
+        $documentData = [
+            'package_id' => $package->id,
+            'user_id' => Auth::id(),
+            'name' => $validated['title'], // Mengisi kolom 'name' dari judul
+            'title' => $validated['title'],
+            'category' => $validated['category'],
+            'document_number' => $validated['document_number'],
+            'drawing_numbers' => $validated['drawing_numbers'],
+            'file_path' => $filePath,
+            'status' => 'pending', // Status awal selalu 'pending' atau 'pengajuan'
+        ];
 
-		// Logika untuk Owner akan kita tambahkan nanti
+        // Logika cerdas untuk membedakan revisi dan dokumen baru
+        if ($request->filled('parent_id')) {
+            $parentDocument = Document::findOrFail($request->parent_id);
+            $documentData['revision'] = $parentDocument->revision + 1;
+            $documentData['parent_id'] = $parentDocument->id;
+            $parentDocument->update(['status' => 'superseded']); // Update status dokumen lama
+            $message = 'Dokumen revisi berhasil diajukan.';
+        } else {
+            $documentData['revision'] = 0; // Dokumen baru adalah revisi 0
+            $message = 'Dokumen baru berhasil diajukan.';
+        }
 
-		return back()->with('success', 'Review berhasil disimpan.');
-	}
+        // Buat entri dokumen di database
+        $document = Document::create($documentData);
+
+        // Lampirkan item RAB setelah dokumen berhasil dibuat
+        if (!empty($validated['rab_items'])) {
+            $document->rabItems()->sync($validated['rab_items']);
+        }
+
+        return redirect()->route('documents.index', ['package' => $package->id])
+                         ->with('success', $message);
+    }
+	
+	public function storeReview(Request $request, Package $package, Document $document)
+    {
+        // 1. Validasi input: Memastikan status yang dipilih adalah salah satu dari tiga ini.
+        $this->authorize('review', $document);
+		$validated = $request->validate([
+            'status' => 'required|in:approved,revision,rejected', // Ditambahkan status 'revision'
+            'notes' => 'nullable|string',
+        ]);
+
+        // 2. Memperbarui status utama pada dokumen
+        $document->status = $validated['status'];
+        $document->save();
+
+        // 3. Membuat catatan riwayat persetujuan baru
+        DocumentApproval::create([
+            'document_id' => $document->id,
+            'user_id' => Auth::id(),
+            'status' => $validated['status'],
+            'notes' => $validated['notes'],
+        ]);
+
+        // 4. Kembali ke halaman sebelumnya dengan pesan sukses
+        return back()->with('success', 'Review berhasil disimpan.');
+    }
 	
 	public function destroy(Package $package, Document $document)
     {
@@ -183,7 +268,7 @@ class DocumentController extends Controller
 	/**
      * TAMBAHKAN: Fungsi untuk menampilkan halaman edit dokumen.
      */
-    public function edit(Package $package, Document $document)
+    public function edit(Package $package, Document $shop_drawing)
     {
         // Ambil data RAB (Sub Item Utama) untuk dropdown
         $mainRabItems = \App\Models\RabItem::where('package_id', $package->id)
@@ -192,15 +277,15 @@ class DocumentController extends Controller
             ->get();
         
         // Ambil ID dari item pekerjaan yang sudah terhubung dengan dokumen ini
-        $selectedRabItems = $document->rabItems()->pluck('rab_items.id')->toArray();
+        $selectedRabItems = $shop_drawing->rabItems()->pluck('rab_items.id')->toArray();
 
-        return view('documents.edit', compact('package', 'document', 'mainRabItems', 'selectedRabItems'));
+		return view('documents.edit', compact('package', 'shop_drawing', 'mainRabItems', 'selectedRabItems'));
     }
 
     /**
      * TAMBAHKAN: Fungsi untuk menyimpan perubahan pada dokumen.
      */
-    public function update(Request $request, Document $document)
+    public function update(Request $request, Document $shop_drawing)
     {
         $validated = $request->validate([
             'title' => 'required|string|max:255',
@@ -210,15 +295,15 @@ class DocumentController extends Controller
             'rab_items' => 'nullable|array',
         ]);
 
-        $document->update($validated);
+        $shop_drawing->update($validated);
 
-        if ($request->has('rab_items')) {
-            $document->rabItems()->sync($request->rab_items);
-        } else {
-            $document->rabItems()->detach();
-        }
+		if ($request->has('rab_items')) {
+			$shop_drawing->rabItems()->sync($request->rab_items);
+		} else {
+			$shop_drawing->rabItems()->detach();
+		}
 
-        return redirect()->route('documents.index', ['package' => $document->package_id])
-                         ->with('success', 'Dokumen berhasil diperbarui.');
-    }
+		return redirect()->route('documents.index', ['package' => $shop_drawing->package_id])
+						 ->with('success', 'Dokumen berhasil diperbarui.');
+	}
 }

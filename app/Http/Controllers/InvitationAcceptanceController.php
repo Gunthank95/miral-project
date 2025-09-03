@@ -54,7 +54,8 @@ class InvitationAcceptanceController extends Controller
                 'user_id' => $user->id,
                 'project_id' => $invitation->project_id,
                 'package_id' => $invitation->package_id,
-                'role' => $invitation->role_in_project,
+                'role' => $invitation->role,
+
             ]);
 
             // Tandai undangan sebagai sudah digunakan

@@ -27,13 +27,15 @@ class InvitationController extends Controller
 		// Ambil undangan yang masih terkirim
 		$pendingInvitations = $project->invitations()->with('company')->whereNull('used_at')->get();
 
+		$roles = config('app.project_roles', []); // Ambil kamus peran
+
 		return view('invitations.index', [
 			'project' => $project,
 			'companies' => $companies,
 			'teamMembers' => $teamMembers,
 			'pendingInvitations' => $pendingInvitations,
-		]);
-	}
+			'roles' => $roles, // Kirim kamus peran ke view
+	]);
 
     /**
      * Menyimpan dan mengirim undangan baru.
@@ -45,6 +47,7 @@ class InvitationController extends Controller
 			'company_id' => 'required|exists:companies,id',
 			'package_id' => 'nullable|exists:packages,id',
 			'role_in_project' => 'required|string|max:255',
+			'role' => 'required|string',
 		]);
 
 		$existingInvitation = $project->invitations()->where('email', $request->email)->whereNull('used_at')->first();
@@ -61,6 +64,7 @@ class InvitationController extends Controller
 			'package_id' => $request->package_id,
 			'company_id' => $request->company_id,
 			'role_in_project' => $request->role_in_project,
+			'role' => $request->role,
 			'expires_at' => \Carbon\Carbon::now()->addDays(7),
 		]);
 

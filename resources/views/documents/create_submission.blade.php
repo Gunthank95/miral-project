@@ -16,20 +16,24 @@
         <div class="bg-white overflow-hidden shadow-xl sm:rounded-lg p-6">
             <h1 class="text-2xl font-bold mb-6">Form Pengajuan Shop Drawing</h1>
 
-            <form action="{{ route('documents.store', ['package' => $package->id]) }}" method="POST" enctype="multipart/form-data" class="space-y-6">
+            <form action="{{ route('documents.store_submission', ['package' => $package->id]) }}" method="POST" enctype="multipart/form-data" class="space-y-6">
                 @csrf
+				{{-- Jika ini adalah form untuk revisi, tambahkan input tersembunyi untuk parent_id --}}
+				@if (isset($originalDocument))
+					<input type="hidden" name="parent_id" value="{{ $originalDocument->id }}">
+				@endif
                 <input type="hidden" name="package_id" value="{{ $package->id }}">
-                <input type="hidden" name="category" value="Shop Drawing">
+                <input type="hidden" name="category" value="shop_drawing">
 
                 {{-- No. Dokumen & No. Gambar --}}
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
                         <label for="document_number" class="block text-sm font-medium text-gray-700">No. Dokumen (Surat Pengajuan)</label>
-                        <input type="text" name="document_number" id="document_number" class="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md px-3 py-2" required>
+                        <input type="text" name="document_number" id="document_number" value="{{ old('document_number', $originalDocument->document_number ?? '') }}" class="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md px-3 py-2" required>
                     </div>
                     <div>
                         <label for="drawing_numbers" class="block text-sm font-medium text-gray-700">No. Gambar (pisahkan dengan koma jika lebih dari satu)</label>
-                        <input type="text" name="drawing_numbers" id="drawing_numbers" class="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md px-3 py-2">
+                        <input type="text" name="drawing_numbers" id="drawing_numbers" value="{{ old('drawing_numbers', $originalDocument->drawing_numbers ?? '') }}" class="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md px-3 py-2">
                     </div>
                 </div>
 
@@ -63,7 +67,7 @@
                 {{-- Judul & Deskripsi --}}
                 <div>
                     <label for="title" class="block text-sm font-medium text-gray-700">Judul Dokumen</label>
-                    <input type="text" name="title" id="title" class="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md px-3 py-2" required>
+                    <input type="text" name="title" id="title" value="{{ old('title', $originalDocument->title ?? '') }}" class="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md px-3 py-2" required>
                 </div>
                 <div>
                     <label for="description" class="block text-sm font-medium text-gray-700">Deskripsi (Opsional)</label>
