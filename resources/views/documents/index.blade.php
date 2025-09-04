@@ -48,45 +48,37 @@
                 </div>
 				@endcan
                 <div class="overflow-x-auto">
-                    <table class="min-w-full bg-white text-sm table-fixed">
-                        <colgroup>
-                            <col style="width: 30%;"><col style="width: 25%;"><col style="width: 20%;"><col style="width: 10%;"><col style="width: 15%;">
-                        </colgroup>
-                        <thead class="bg-gray-50">
+                    <table class="min-w-full text-sm">
+						<thead class="bg-gray-100">
 							<tr>
-								<th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-40">
-									Tanggal
-								</th>
-								<th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-									No. Dokumen / No. Gambar
-								</th>
-								<th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-									Untuk Pekerjaan
-								</th>
-								<th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-									Rev.
-								</th>
-								<th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-									Status
-								</th>
-								<th scope="col" class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-									Aksi
-								</th>
+								<th class="text-left px-4 py-2 w-[5%]"></th> <th class="text-center px-4 py-2 w-[15%]">Tanggal</th>
+								<th class="text-left px-4 py-2 w-[30%]">Judul / No. Dokumen</th>
+								<th class="text-left px-4 py-2 w-[30%]">Untuk Pekerjaan</th>
+								<th class="text-center px-4 py-2 w-[5%]">Rev.</th>
+								<th class="text-center px-4 py-2 w-[15%]">Status</th>
+								<th class="text-center px-4 py-2 w-[15%]">Aksi</th>
 							</tr>
 						</thead>
                         <tbody x-data="{ openDetailId: null }">
 							@forelse ($documentsByCategory[$activeCategory] ?? [] as $document)
 								{{-- ======================== Baris Utama Dokumen ======================== --}}
-								<tr>
-									<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+								<tr class="hover:bg-gray-50">
+									{{-- PERBAIKAN: Lebar kolom diatur di sini (TD) dan di header (TH) --}}
+									<td class="px-4 py-2 text-center">
+										<button @click="openDetailId = (openDetailId === {{ $document->id }}) ? null : {{ $document->id }}" class="text-indigo-600 hover:text-indigo-900 text-lg font-bold w-5 h-5 flex items-center justify-center" title="Lihat Detail">
+											<span x-show="openDetailId !== {{ $document->id }}" style="display: none;">▶</span>
+											<span x-show="openDetailId === {{ $document->id }}" style="display: none;">▼</span>
+										</button>
+									</td>
+									{{-- Sisa kolom lainnya --}}
+									<td class="px-4 py-2 text-center">
 										{{ optional($document->created_at)->format('d M Y') }}
 									</td>
-									<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+									<td class="px-4 py-2">
 										<div class="font-medium text-indigo-600">{{ $document->title }}</div>
 										<div class="text-xs text-gray-500">No. Dok: {{ $document->document_number ?: '-' }}</div>
-										<div class="text-xs text-gray-500">No. Gbr: {{ $document->drawing_numbers ?: '-' }}</div>
 									</td>
-									<td class="px-6 py-4 text-sm text-gray-500">
+									<td class="px-4 py-2">
 										@forelse ($document->rabItems->take(2) as $item)
 											<span class="block text-xs">{{ $item->item_name }}</span>
 										@empty
@@ -96,11 +88,11 @@
 											<span class="text-xs text-gray-400">...dan lainnya</span>
 										@endif
 									</td>
-									<td class="px-6 py-4 whitespace-nowrap text-sm text-center text-gray-500">
+									<td class="text-center px-4 py-2">
 										{{ $document->revision }}
 									</td>
-									<td class="px-6 py-4 whitespace-nowrap text-sm">
-										@php
+									<td class="text-center px-4 py-2">
+										 @php
 											$statusConfig = [
 												'pending' => ['text' => 'Pengajuan', 'color' => 'blue'],
 												'revision' => ['text' => 'Revisi', 'color' => 'yellow'],
@@ -115,57 +107,42 @@
 										</span>
 									</td>
 									<td class="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
-										{{-- Tombol untuk membuka/menutup detail --}}
-										<button @click="openDetailId = (openDetailId === {{ $document->id }}) ? null : {{ $document->id }}" class="text-indigo-600 hover:text-indigo-900" title="Lihat Detail & Aksi">
-											<svg class="w-5 h-5" x-show="openDetailId !== {{ $document->id }}" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9 9V5a1 1 0 112 0v4h4a1 1 0 110 2H9z" clip-rule="evenodd" /></svg>
-											<svg class="w-5 h-5" x-show="openDetailId === {{ $document->id }}" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" style="display: none;"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM7 9a1 1 0 000 2h6a1 1 0 100-2H7z" clip-rule="evenodd" /></svg>
-										</button>
+										<div class="flex justify-center items-center space-x-3">
+											<a href="{{ Storage::url($document->file_path) }}" target="_blank" class="text-gray-500 hover:text-blue-700" title="Lihat File">
+												<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M10 12a2 2 0 100-4 2 2 0 000 4z" /><path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.022 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd" /></svg>
+											</a>
+											@if ($document->status == 'revision')
+												@can('create', App\Models\Document::class)
+													<a href="{{ route('documents.createRevision', ['package' => $package->id, 'document' => $document->id]) }}" class="text-green-600 hover:text-green-800" title="Unggah Revisi">
+														<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm.707-10.293a1 1 0 00-1.414-1.414l-3 3a1 1 0 000 1.414l3 3a1 1 0 001.414-1.414L9.414 11H13a1 1 0 100-2H9.414l1.293-1.293z" clip-rule="evenodd" /></svg>
+													</a>
+												@endcan
+											@endif
+											 @can('review', $document)
+												<button @click="reviewModalOpen = true; actionUrl = '{{ route('documents.storeReview', ['package' => $package->id, 'document' => $document->id]) }}'; documentTitle = '{{ addslashes($document->title) }}'" class="text-blue-600 hover:text-blue-800" title="Review Dokumen">
+													<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" /><path fill-rule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clip-rule="evenodd" /></svg>
+												</button>
+											@endcan
+											@if(in_array($document->status, ['pending', 'revision']))
+												<a href="{{ route('documents.edit', ['package' => $package->id, 'shop_drawing' => $document->id]) }}" class="text-yellow-600 hover:text-yellow-800" title="Edit Dokumen">
+													<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" /></svg>
+												</a>
+											@endif
+											 <form action="{{ route('documents.destroy', ['package' => $package->id, 'shop_drawing' => $document->id]) }}" method="POST" onsubmit="return confirm('Apakah Anda yakin ingin menghapus dokumen ini?');">
+												@csrf
+												@method('DELETE')
+												<button type="submit" class="text-red-600 hover:text-red-800" title="Hapus">
+													<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+												</button>
+											</form>
+										 </div>
 									</td>
 								</tr>
-
-								{{-- ======================== Baris Detail Riwayat & Aksi (Tersembunyi) ======================== --}}
+								{{-- Baris Detail Riwayat --}}
 								<tr x-show="openDetailId === {{ $document->id }}" x-cloak style="display: none;">
+									<td></td>
 									<td colspan="6" class="p-0">
-										<div class="bg-gray-50 p-4 border-l-4 border-indigo-200">
-											{{-- Judul dan Kumpulan Tombol Aksi --}}
-											<div class="flex justify-between items-center mb-4">
-												 <h4 class="text-sm font-bold text-gray-800">Aksi & Riwayat Persetujuan:</h4>
-												 <div class="flex items-center space-x-3">
-													{{-- Tombol Unggah Revisi --}}
-													@if ($document->status == 'revision')
-														@can('create', App\Models\Document::class)
-															<a href="{{ route('documents.createRevision', ['package' => $package->id, 'document' => $document->id]) }}" class="text-green-600 hover:text-green-800" title="Unggah Revisi">
-																<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm.707-10.293a1 1 0 00-1.414-1.414l-3 3a1 1 0 000 1.414l3 3a1 1 0 001.414-1.414L9.414 11H13a1 1 0 100-2H9.414l1.293-1.293z" clip-rule="evenodd" /></svg>
-															</a>
-														@endcan
-													@endif
-
-													{{-- Tombol Review --}}
-													 @can('review', $document)
-														<button @click="reviewModalOpen = true; actionUrl = '{{ route('documents.storeReview', ['package' => $package->id, 'document' => $document->id]) }}'; documentTitle = '{{ addslashes($document->title) }}'" class="text-blue-600 hover:text-blue-800" title="Review Dokumen">
-															<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" /><path fill-rule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clip-rule="evenodd" /></svg>
-														</button>
-													@endcan
-
-													{{-- Tombol Edit --}}
-													@if(in_array($document->status, ['pending', 'revision']))
-														<a href="{{ route('documents.edit', ['package' => $package->id, 'shop_drawing' => $document->id]) }}" class="text-yellow-600 hover:text-yellow-800" title="Edit Dokumen">
-															<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" /></svg>
-														</a>
-													@endif
-
-													 {{-- Tombol Hapus --}}
-													 <form action="{{ route('documents.destroy', ['package' => $package->id, 'shop_drawing' => $document->id]) }}" method="POST" onsubmit="return confirm('Apakah Anda yakin ingin menghapus dokumen ini?');">
-														@csrf
-														@method('DELETE')
-														<button type="submit" class="text-red-600 hover:text-red-800" title="Hapus">
-															<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-														</button>
-													</form>
-												 </div>
-											</div>
-
-											{{-- Tabel Riwayat --}}
+										<div class="bg-gray-50 p-4">
 											@if ($document->approvals->isNotEmpty())
 												<table class="min-w-full text-sm">
 													<thead class="bg-gray-100">
@@ -201,14 +178,14 @@
 													</tbody>
 												</table>
 											@else
-												<p class="text-sm text-gray-500">Belum ada riwayat persetujuan untuk dokumen ini.</p>
+												<p class="text-sm text-gray-500 p-3">Belum ada riwayat persetujuan untuk dokumen ini.</p>
 											@endif
 										</div>
 									</td>
 								</tr>
 							@empty
 								<tr>
-									<td colspan="6" class="px-6 py-4 text-center text-sm text-gray-500">
+									<td colspan="7" class="px-6 py-4 text-center text-sm text-gray-500">
 										Belum ada dokumen yang diajukan.
 									</td>
 								</tr>

@@ -132,4 +132,30 @@
     });
     </script>
 </body>
+
+{{-- SCRIPT "PEMAKSA" UNTUK MEMPERBAIKI LEBAR KOLOM TABEL DOKUMEN --}}
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            // Fungsi ini akan dijalankan setelah seluruh halaman dimuat
+            const documentTable = document.querySelector('#document-table');
+
+            if (documentTable) {
+                // Atur tabel ke mode 'fixed'
+                documentTable.style.tableLayout = 'fixed';
+                
+                // Cari header pertama (kolom +) dan paksa lebarnya
+                const firstHeader = documentTable.querySelector('thead th:first-child');
+                if (firstHeader) {
+                    firstHeader.style.width = '60px';
+                }
+
+                // Cari header "Untuk Pekerjaan" dan paksa lebarnya
+                // Kolom ke-4, jadi kita gunakan nth-child(4)
+                const workHeader = documentTable.querySelector('thead th:nth-child(4)');
+                if (workHeader) {
+                    workHeader.style.width = '35%';
+                }
+            }
+        });
+    </script>
 </html>
