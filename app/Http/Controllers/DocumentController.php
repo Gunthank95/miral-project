@@ -6,6 +6,7 @@ use App\Models\Package;
 use App\Models\Document; // Pastikan ini ditambahkan
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 class DocumentController extends Controller
 {
@@ -175,62 +176,85 @@ class DocumentController extends Controller
      * Fungsi ini bisa menangani dokumen baru maupun dokumen revisi.
      */
     public function storeSubmission(Request $request, Package $package)
-    {
-        $this->authorize('create', Document::class);
+	{
+		$this->authorize('create', Document::class);
 
-        // 1. Validasi semua input dari form
-        $validated = $request->validate([
-            'document_number' => 'required|string|max:255',
-            'drawing_title' => 'required|string|max:255',
-            'drawing_number' => 'required|string|max:255',
-            'files' => 'required|array',
-            'files.*' => 'file|mimes:pdf,dwg,zip,rar|max:20480', // Setiap file max 20MB
-            'rab_items' => 'nullable|array',
-        ]);
+		// 1. Validasi semua input dari form, termasuk array yang baru
+		$validated = $request->validate([
+			'document_number' => 'required|string|max:255',
+			'drawings' => 'required|array|min:1',
+			'drawings.*.title' => 'required|string|max:255',
+			'drawings.*.number' => 'required|string|max:255',
+			'files' => 'required|array',
+			'files.*' => 'file|mimes:pdf,dwg,zip,rar|max:20480',
+			'rab_items' => 'nullable|array',
+			'rab_items.*.id' => 'required|exists:rab_items,id',
+			'rab_items.*.completion_status' => 'required|in:lengkap,belum_lengkap',
+		]);
 
-        // 2. Buat "Surat Pengantar" (entri di tabel documents)
-        $document = Document::create([
-            'package_id' => $package->id,
-            'user_id' => Auth::id(),
-            'document_number' => $validated['document_number'],
-            'status' => 'pending', // Status awal pengajuan
-            'category' => 'shop_drawing', // Dibuat statis karena halaman ini khusus shop drawing
-             // Kita isi title & name dari nomor dokumen agar tidak kosong
-            'title' => 'Shop Drawing Submission: ' . $validated['document_number'],
-            'name' => 'Shop Drawing Submission: ' . $validated['document_number'],
-        ]);
+		// Menggunakan DB Transaction agar semua proses berhasil atau gagal bersamaan
+		DB::beginTransaction();
+		try {
+			// 2. Buat "Surat Pengantar" (entri di tabel documents)
+			$document = Document::create([
+				'package_id' => $package->id,
+				'project_id' => $package->project_id, // Ambil dari relasi
+				'user_id' => Auth::id(),
+				'document_number' => $validated['document_number'],
+				'status' => 'pending',
+				'category' => 'shop_drawing',
+				'title' => 'Shop Drawing: ' . $validated['document_number'],
+				'name' => 'Shop Drawing: ' . $validated['document_number'],
+				'requires_approval' => true, // Shop drawing selalu butuh persetujuan
+			]);
 
-        // 3. Simpan setiap file yang diunggah
-        foreach ($request->file('files') as $file) {
-            $path = $file->store('documents', 'public');
-            $document->files()->create([
-                'file_path' => $path,
-                'original_filename' => $file->getClientOriginalName(),
-            ]);
-        }
+			// 3. Simpan setiap file yang diunggah
+			foreach ($request->file('files') as $file) {
+				$path = $file->store('documents', 'public');
+				$document->files()->create([
+					'file_path' => $path,
+					'original_filename' => $file->getClientOriginalName(),
+				]);
+			}
 
-        // 4. Simpan detail gambar (saat ini baru satu)
-        $drawingDetail = $document->drawingDetails()->create([
-            'drawing_number' => $validated['drawing_number'],
-            'drawing_title' => $validated['drawing_title'],
-            'revision' => 0,
-            'status' => 'pending',
-        ]);
+			// 4. Simpan SEMUA detail gambar yang diinput
+			foreach ($validated['drawings'] as $drawingData) {
+				$document->drawingDetails()->create([
+					'drawing_number' => $drawingData['number'],
+					'drawing_title' => $drawingData['title'],
+					'revision' => 0,
+					'status' => 'pending', // Status per gambar juga pending
+				]);
+			}
 
-        // 5. Hubungkan item pekerjaan ke detail gambar
-        if (!empty($validated['rab_items'])) {
-            // Kita siapkan data untuk tabel pivot
-            $rabData = [];
-            foreach ($validated['rab_items'] as $rabId) {
-                $rabData[$rabId] = ['completion_status' => 'belum'];
-            }
-            $drawingDetail->rabItems()->sync($rabData);
-        }
+			// 5. Hubungkan item pekerjaan ke DOKUMEN UTAMA beserta status kelengkapannya
+			if (!empty($validated['rab_items'])) {
+				$rabSyncData = [];
+				foreach ($validated['rab_items'] as $rabId => $details) {
+					$rabSyncData[$rabId] = ['completion_status' => $details['completion_status']];
+				}
+				$document->rabItems()->sync($rabSyncData);
+			}
 
-        // 6. Arahkan kembali ke halaman utama dengan pesan sukses
-        return redirect()->route('documents.index', ['package' => $package->id])
-                         ->with('success', 'Shop Drawing berhasil diajukan dan sedang menunggu review.');
-    }
+			// 6. Buat catatan riwayat pengajuan awal
+			$document->approvals()->create([
+				'user_id' => Auth::id(),
+				'status' => 'pending',
+				'notes' => 'Dokumen diajukan pertama kali oleh Kontraktor.'
+			]);
+
+			DB::commit(); // Konfirmasi semua perubahan jika tidak ada error
+
+			// 7. Arahkan kembali ke halaman utama dengan pesan sukses
+			return redirect()->route('documents.index', ['package' => $package->id])
+							->with('success', 'Shop Drawing berhasil diajukan dan sedang menunggu review.');
+
+		} catch (\Exception $e) {
+			DB::rollBack(); // Batalkan semua jika ada error
+			// Tampilkan error untuk debugging
+			return back()->with('error', 'Terjadi kesalahan saat menyimpan data: ' . $e->getMessage())->withInput();
+		}
+	}
 	
 	public function storeReview(Request $request, Package $package, Document $document)
     {
