@@ -52,4 +52,20 @@ class Document extends Model
     {
         return $this->hasMany(DocumentApproval::class);
     }
+	
+	/**
+	 * Relasi: Setiap dokumen (surat pengantar) memiliki banyak detail gambar.
+	 */
+	public function drawingDetails()
+	{
+		return $this->hasMany(DrawingDetail::class);
+	}
+	
+	/**
+	 * Relasi: Setiap dokumen (surat pengantar) memiliki banyak file lampiran.
+	 */
+	public function files()
+	{
+		return $this->hasMany(DocumentFile::class);
+}
 }

@@ -21,21 +21,7 @@
     @endif
 
     <main>
-        {{-- Navigasi Tab --}}
-        <div class="mb-4 border-b border-gray-200">
-            <ul class="flex flex-wrap -mb-px text-sm font-medium text-center text-gray-500">
-                @foreach ($categories as $key => $name)
-                <li class="mr-2">
-                    <a href="#" @click.prevent="activeTab = '{{ $key }}'"
-                       :class="{ 'text-blue-600 border-blue-600 active': activeTab === '{{ $key }}', 'border-transparent hover:text-gray-600 hover:border-gray-300': activeTab !== '{{ $key }}' }"
-                       class="inline-block p-4 border-b-2 rounded-t-lg">
-                        {{ $name }}
-                    </a>
-                </li>
-                @endforeach
-            </ul>
-        </div>
-
+        
         {{-- KONTEN TAB --}}
         <div class="bg-white p-4 rounded-b-lg shadow">
             {{-- Tab Shop Drawing --}}
