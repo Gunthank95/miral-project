@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Manajemen Dokumen')
+@section('title', 'Approval Shop Drawing')
 
 @section('content')
 {{-- "Saklar" utama untuk semua interaksi di halaman ini (modal dan tab) --}}
@@ -8,7 +8,7 @@
     <header class="bg-white shadow p-4 rounded-lg mb-6">
         <div class="flex justify-between items-center">
             <div>
-                <h1 class="text-2xl font-bold text-gray-800">Manajemen Dokumen</h1>
+                <h1 class="text-2xl font-bold text-gray-800">Approval Shop Drawing</h1>
                 <p class="text-sm text-gray-500">Proyek: {{ $package->project->name }} - Paket: {{ $package->name }}</p>
             </div>
         </div>
