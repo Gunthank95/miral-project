@@ -17,8 +17,25 @@
             action="{{ route('documents.store_submission', ['package' => $package->id]) }}" 
             method="POST" 
             enctype="multipart/form-data"
-            class="space-y-8 bg-white overflow-hidden shadow-xl sm:rounded-lg p-6"
-        >
+            class="space-y-8 bg-white overflow-hidden shadow-xl sm:rounded-lg p-6">
+			
+			@if ($errors->any())
+                <div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-6" role="alert">
+                    <p class="font-bold">Terdapat kesalahan pada input Anda:</p>
+                    <ul class="mt-2 list-disc list-inside">
+                        @foreach ($errors->all() as $error)
+                            <li>{{ $error }}</li>
+                        @endforeach
+                    </ul>
+                </div>
+            @endif
+
+            @if (session('error'))
+                <div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-6" role="alert">
+                    <p class="font-bold">Terjadi Kesalahan!</p>
+                    <p>{{ session('error') }}</p>
+                </div>
+            @endif
             @csrf
 
             <h1 class="text-2xl font-bold text-gray-800 border-b pb-4">Form Pengajuan Shop Drawing</h1>
@@ -28,7 +45,7 @@
                 <h2 class="text-lg font-semibold text-gray-700">Informasi Utama</h2>
                 <div>
                     <label for="document_number" class="block text-sm font-medium text-gray-700">No. Dokumen (Surat Pengantar)</label>
-                    <input type="text" name="document_number" id="document_number" value="{{ old('document_number') }}" class="mt-1 block w-full md:w-1/2 shadow-sm sm:text-sm border-gray-300 rounded-md" required>
+                    <input type="text" name="document_number" id="document_number" value="{{ old('document_number') }}" class="mt-1 block w-full md:w-1/2 shadow-sm sm:text-sm border-gray-300 rounded-md px-4 py-2" required>
                 </div>
             </div>
 
@@ -114,12 +131,12 @@ document.addEventListener('DOMContentLoaded', function() {
         newRow.innerHTML = `
             <div>
                 <label for="drawing_title_${drawingIndex}" class="block text-sm font-medium text-gray-700">Judul Gambar</label>
-                <input name="drawings[${drawingIndex}][title]" id="drawing_title_${drawingIndex}" type="text" class="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md" required>
+                <input name="drawings[${drawingIndex}][title]" id="drawing_title_${drawingIndex}" type="text" class="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md  px-4 py-2" required>
             </div>
             <div class="flex items-start space-x-2">
                 <div class="flex-grow">
                     <label for="drawing_number_${drawingIndex}" class="block text-sm font-medium text-gray-700">No. Gambar</label>
-                    <input name="drawings[${drawingIndex}][number]" id="drawing_number_${drawingIndex}" type="text" class="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md" required>
+                    <input name="drawings[${drawingIndex}][number]" id="drawing_number_${drawingIndex}" type="text" class="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md  px-4 py-2" required>
                 </div>
                 <button type="button" class="remove-drawing-btn text-red-500 hover:text-red-700 mt-7">
                     <svg xmlns="http://www.w.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" /></svg>
@@ -186,9 +203,15 @@ document.addEventListener('DOMContentLoaded', function() {
 
             tomSelectChild.clearOptions(); // Hapus 'Memuat...'
             children.forEach(option => {
+                // Logika yang sudah ada dari perbaikan sebelumnya
+                const displayText = option.item_number ? `${option.item_number} - ${option.name}` : option.name;
+
+                // TAMBAHAN: "Menerjemahkan" kode &nbsp; menjadi spasi biasa
+                const decodedText = new DOMParser().parseFromString(displayText, 'text/html').body.textContent;
+
                 tomSelectChild.addOption({ 
                     id: option.id, 
-                    name: `${option.item_number} - ${option.name}`
+                    name: decodedText // Gunakan teks yang sudah diterjemahkan
                 });
             });
             tomSelectChild.enable();
