@@ -14,10 +14,12 @@ use App\Http\Controllers\ScheduleController;
 | is assigned the "api" middleware group. Enjoy building your API!
 |
 */
-	Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
-		return $request->user();
+Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
+	return $request->user();
 		
 	Route::get('/schedule-data/{package}', [ScheduleController::class, 'getScheduleData']);
+	Route::get('/packages/{package}/main-rab-items', [\App\Http\Controllers\ApiController::class, 'getMainRabItems']);
+	Route::get('/documents/{document}/review-details', [\App\Http\Controllers\ApiController::class, 'getDocumentReviewDetails'])->name('api.documents.review_details');
 });
 
-Route::get('/packages/{package}/main-rab-items', [\App\Http\Controllers\ApiController::class, 'getMainRabItems']);
+

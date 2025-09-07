@@ -198,7 +198,7 @@ Route::middleware('auth')->group(function () {
 		Route::post('shop-drawing/store-submission', [DocumentController::class, 'storeSubmission'])->name('documents.store_submission');
 
 		// Hanya ada SATU route untuk review, lebih rapi dan terpusat
-		Route::post('shop-drawing/{document}/review', [DocumentController::class, 'storeReview'])->name('documents.storeReview');
+		Route::post('shop-drawing/{shop_drawing}/review', [DocumentController::class, 'storeReview'])->name('documents.storeReview');
 		
 		// URL untuk menampilkan halaman form unggah revisi
 		Route::get('shop-drawing/{document}/revise', [DocumentController::class, 'createRevision'])->name('documents.createRevision');

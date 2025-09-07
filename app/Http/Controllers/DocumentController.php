@@ -22,9 +22,9 @@ class DocumentController extends Controller
 
         // 3. Ambil SEMUA dokumen dari paket ini sekaligus.
         $allDocuments = \App\Models\Document::where('package_id', $package->id)
-            ->with(['rabItems', 'user', 'approvals.user'])
-            ->latest()
-            ->get();
+			->with(['rabItems', 'user', 'approvals.user', 'files']) // <-- PASTIKAN 'files' ADA DI SINI
+			->latest()
+			->get();
 
         // 4. Kelompokkan semua dokumen tersebut berdasarkan kategori.
         $documentsByCategory = $allDocuments->groupBy(function ($item, $key) {
@@ -256,29 +256,41 @@ class DocumentController extends Controller
 		}
 	}
 	
-	public function storeReview(Request $request, Package $package, Document $document)
+	
+	
+	/**
+     * Menyimpan hasil review dari MK.
+     */
+    public function storeReview(Request $request, Package $package, Document $shop_drawing)
     {
-        // 1. Validasi input: Memastikan status yang dipilih adalah salah satu dari tiga ini.
-        $this->authorize('review', $document);
-		$validated = $request->validate([
-            'status' => 'required|in:approved,revision,rejected', // Ditambahkan status 'revision'
+        $this->authorize('review', $shop_drawing);
+
+        $validated = $request->validate([
+            'status' => 'required|string|in:Disetujui,Disetujui dengan catatan,Revisi,Ditolak',
             'notes' => 'nullable|string',
+            'continue_to_owner' => 'required|boolean',
         ]);
 
-        // 2. Memperbarui status utama pada dokumen
-        $document->status = $validated['status'];
-        $document->save();
+        DB::beginTransaction();
+        try {
+            $shop_drawing->approvals()->create([
+                'user_id' => Auth::id(),
+                'status' => $validated['status'],
+                'notes' => $validated['notes'],
+            ]);
 
-        // 3. Membuat catatan riwayat persetujuan baru
-        DocumentApproval::create([
-            'document_id' => $document->id,
-            'user_id' => Auth::id(),
-            'status' => $validated['status'],
-            'notes' => $validated['notes'],
-        ]);
+            $shop_drawing->status = $validated['status'];
+            $shop_drawing->save();
 
-        // 4. Kembali ke halaman sebelumnya dengan pesan sukses
-        return back()->with('success', 'Review berhasil disimpan.');
+            DB::commit();
+
+            return redirect()->route('documents.index', ['package' => $package->id])
+                            ->with('success', 'Hasil review untuk dokumen "' . $shop_drawing->title . '" berhasil disimpan.');
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return back()->with('error', 'Terjadi kesalahan saat menyimpan review: ' . $e->getMessage());
+        }
     }
 	
 	public function destroy(Package $package, Document $document)

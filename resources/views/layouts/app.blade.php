@@ -130,7 +130,53 @@
             }
         });
     });
-    </script>
+    <script>
+	function documentPage() {
+		return {
+			fileModalOpen: false, 
+			documentFiles: [],
+			reviewModal: {
+				open: false,
+				loading: true,
+				actionUrl: '',
+				documentTitle: '',
+				documentId: null,
+				details: {
+					drawings: [],
+					rab_items: [],
+				}
+			},
+
+			openReviewModal(url, title, docId) {
+				this.reviewModal.actionUrl = url;
+				this.reviewModal.documentTitle = title;
+				this.reviewModal.documentId = docId;
+				this.reviewModal.open = true;
+				this.reviewModal.loading = true;
+
+				fetch(`/api/documents/${docId}/review-details`)
+					.then(response => {
+						if (!response.ok) { throw new Error('Gagal mengambil data'); }
+						return response.json();
+					})
+					.then(data => {
+						this.reviewModal.details = data;
+						this.reviewModal.loading = false;
+					})
+					.catch(error => {
+						console.error('Error fetching review details:', error);
+						this.reviewModal.loading = false;
+						alert('Gagal memuat detail dokumen.');
+					});
+			},
+
+			closeReviewModal() {
+				this.reviewModal.open = false;
+			}
+		}
+	}
+	
+	</script>
 </body>
 
 {{-- SCRIPT "PEMAKSA" UNTUK MEMPERBAIKI LEBAR KOLOM TABEL DOKUMEN --}}

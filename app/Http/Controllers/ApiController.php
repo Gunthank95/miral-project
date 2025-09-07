@@ -107,4 +107,20 @@ class ApiController extends Controller
 
 		return response()->json($items);
 	}
+	
+	public function getDocumentReviewDetails(\App\Models\Document $document)
+    {
+        // Memeriksa hak akses user
+        $this->authorize('review', $document);
+
+        // Mengambil semua data terkait yang dibutuhkan
+        $document->load(['drawingDetails', 'rabItems', 'approvals.user']);
+
+        // Mengirim data dalam format JSON
+        return response()->json([
+            'drawings' => $document->drawingDetails,
+            'rab_items' => $document->rabItems,
+            'history' => $document->approvals
+        ]);
+    }
 }
