@@ -67,5 +67,29 @@ class Document extends Model
 	public function files()
 	{
 		return $this->hasMany(DocumentFile::class);
-}
+	}
+	
+	public function updateOverallStatus()
+	{
+		// Jika tidak ada detail gambar sama sekali, tidak melakukan apa-apa.
+		if ($this->drawingDetails()->count() == 0) {
+			return;
+		}
+
+		$statuses = $this->drawingDetails()->pluck('status')->unique();
+
+		if ($statuses->contains('rejected')) {
+			$this->status = 'rejected';
+		} elseif ($statuses->contains('revision')) {
+			$this->status = 'revision';
+		} elseif ($statuses->count() === 1 && $statuses->first() === 'approved') {
+			// Hanya jika SEMUA status adalah 'approved'
+			$this->status = 'approved';
+		} else {
+			// Jika masih ada yang 'pending' atau kombinasi lain
+			$this->status = 'pending';
+		}
+
+		$this->save();
+	}
 }

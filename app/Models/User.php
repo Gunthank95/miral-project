@@ -94,6 +94,11 @@ class User extends Authenticatable
         return $this->hasMany(UserProjectRole::class);
     }
 	
+	public function isSuperAdmin(): bool
+	{
+		return $this->role === 'super_admin';
+	}
+
 	/**
 	 * Mendapatkan peran (role) pengguna untuk proyek yang spesifik.
 	 *
@@ -108,4 +113,18 @@ class User extends Authenticatable
 		// Jika ditemukan, kembalikan nama perannya. Jika tidak, kembalikan null.
 		return $roleRecord ? $roleRecord->role : null;
 	}
+	
+	/**
+     * Mendapatkan LEVEL JABATAN (angka) pengguna untuk proyek yang spesifik.
+     *
+     * @param int $projectId ID dari proyek yang ingin diperiksa.
+     * @return int|null Level jabatan (angka) atau null jika tidak ditemukan.
+     */
+    public function getLevelInProject($projectId)
+    {
+        $roleRecord = $this->projectRoles()->where('project_id', $projectId)->first();
+
+        // Mengembalikan nilai dari kolom 'role_level' yang baru
+        return $roleRecord ? $roleRecord->role_level : null;
+    }
 }

@@ -50,9 +50,21 @@
             </div>
 
             <div class="mb-4">
-                <label for="position" class="block text-sm font-medium text-gray-700">Jabatan Anda</label>
-                <input type="text" name="position" id="position" value="{{ old('position') }}" required class="mt-1 w-full border rounded px-3 py-2" placeholder="Contoh: Project Manager">
-            </div>
+				<label for="role_level" class="block text-sm font-medium text-gray-700">Level Jabatan</label>
+				<select id="role_level" name="role_level" class="mt-1 w-full border rounded px-3 py-2" required>
+					<option value="">-- Pilih Level Jabatan --</option>
+					@foreach($roles as $key => $role)
+						<option value="{{ $key }}" {{ old('role_level') == $key ? 'selected' : '' }}>
+							{{ $role['display_name'] }}
+						</option>
+					@endforeach
+				</select>
+			</div>
+
+			<div class="mb-4">
+				<label for="position_title" class="block text-sm font-medium text-gray-700">Nama Jabatan</label>
+				<input id="position_title" class="mt-1 w-full border rounded px-3 py-2" type="text" name="position_title" value="{{ old('position_title') }}" required placeholder="Contoh: Lead Civil Engineer" />
+			</div>
 
             <div class="mb-4">
                 <label for="email" class="block text-sm font-medium text-gray-700">Alamat Email</label>

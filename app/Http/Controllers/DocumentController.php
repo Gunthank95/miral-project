@@ -10,31 +10,34 @@ use Illuminate\Support\Facades\DB;
 
 class DocumentController extends Controller
 {
-    public function index(Request $request, Package $package)
-    {
-        // 1. Siapkan daftar kategori.
-        $categories = [
-            'shop_drawing' => 'Shop Drawing',
-        ];
+    // GANTI method index() di dalam DocumentController
 
-        // 2. Tentukan tab mana yang sedang aktif.
-        $activeCategory = $request->input('category', 'shop_drawing');
+	public function index(Request $request, Package $package)
+	{
+		// 1. Siapkan daftar kategori.
+		$categories = [
+			'shop_drawing' => 'Shop Drawing',
+		];
 
-        // 3. Ambil SEMUA dokumen dari paket ini sekaligus.
-        $allDocuments = \App\Models\Document::where('package_id', $package->id)
-			->with(['rabItems', 'user', 'approvals.user', 'files']) // <-- PASTIKAN 'files' ADA DI SINI
+		// 2. Tentukan tab mana yang sedang aktif.
+		$activeCategory = $request->input('category', 'shop_drawing');
+
+		// 3. Ambil SEMUA dokumen dari paket ini sekaligus.
+		$allDocuments = \App\Models\Document::where('package_id', $package->id)
+			// PASTIKAN SEMUA RELASI INI DIMUAT (EAGER LOADING)
+			->with(['rabItems', 'user', 'approvals.user', 'files', 'drawingDetails']) 
 			->latest()
 			->get();
 
-        // 4. Kelompokkan semua dokumen tersebut berdasarkan kategori.
-        $documentsByCategory = $allDocuments->groupBy(function ($item, $key) {
+		// 4. Kelompokkan semua dokumen tersebut berdasarkan kategori.
+		$documentsByCategory = $allDocuments->groupBy(function ($item, $key) {
 			// Membuat semua nama kategori menjadi standar: huruf kecil dan pakai underscore
 			return str_replace(' ', '_', strtolower($item->category));
 		});
-        
-        // 5. Kirim semua data yang sudah siap ke halaman tampilan.
-        return view('documents.index', compact('package', 'categories', 'activeCategory', 'documentsByCategory'));
-    }
+		
+		// 5. Kirim semua data yang sudah siap ke halaman tampilan.
+		return view('documents.index', compact('package', 'categories', 'activeCategory', 'documentsByCategory'));
+	}
 	
     /**
      * Menampilkan form untuk mengunggah dokumen baru.
@@ -261,37 +264,72 @@ class DocumentController extends Controller
 	/**
      * Menyimpan hasil review dari MK.
      */
-    public function storeReview(Request $request, Package $package, Document $shop_drawing)
-    {
-        $this->authorize('review', $shop_drawing);
+    public function storeReview(Request $request, Package $package, Document $document)
+	{
+		$this->authorize('review', $document);
 
-        $validated = $request->validate([
-            'status' => 'required|string|in:Disetujui,Disetujui dengan catatan,Revisi,Ditolak',
-            'notes' => 'nullable|string',
-            'continue_to_owner' => 'required|boolean',
-        ]);
+		$validated = $request->validate([
+			'drawings' => 'required|array',
+			'drawings.*.status' => 'required|string|in:approved,revision,rejected',
+			'drawings.*.notes' => 'nullable|string',
+			
+			'rab_items' => 'nullable|array',
+			'rab_items.*.completion_status' => 'required|string|in:lengkap,belum_lengkap',
+			
+			'overall_notes' => 'nullable|string',
+			'disposition' => 'required|string', // Contoh: 'to_owner', 'final_approve'
+		]);
 
-        DB::beginTransaction();
-        try {
-            $shop_drawing->approvals()->create([
-                'user_id' => Auth::id(),
-                'status' => $validated['status'],
-                'notes' => $validated['notes'],
-            ]);
+		DB::beginTransaction();
+		try {
+			// 1. Update status dan catatan untuk setiap gambar (DrawingDetail)
+			foreach ($validated['drawings'] as $id => $data) {
+				$drawingDetail = \App\Models\DrawingDetail::find($id);
+				if ($drawingDetail && $drawingDetail->document_id == $document->id) {
+					$drawingDetail->update([
+						'status' => $data['status'],
+						'notes' => $data['notes'],
+						'reviewed_by' => Auth::id(),
+						'review_date' => now(),
+					]);
+				}
+			}
 
-            $shop_drawing->status = $validated['status'];
-            $shop_drawing->save();
+			// 2. Update status kelengkapan item pekerjaan di tabel pivot
+			if (!empty($validated['rab_items'])) {
+				$rabSyncData = [];
+				foreach ($validated['rab_items'] as $rabId => $details) {
+					$rabSyncData[$rabId] = ['completion_status' => $details['completion_status']];
+				}
+				$document->rabItems()->sync($rabSyncData);
+			}
 
-            DB::commit();
+			// 3. Buat catatan riwayat baru untuk proses review ini
+			$document->approvals()->create([
+				'user_id' => Auth::id(),
+				'status' => $validated['disposition'], // Status di riwayat mencerminkan disposisi
+				'notes' => $validated['overall_notes'],
+			]);
 
-            return redirect()->route('documents.index', ['package' => $package->id])
-                            ->with('success', 'Hasil review untuk dokumen "' . $shop_drawing->title . '" berhasil disimpan.');
+			// 4. Hitung ulang dan update status keseluruhan dari surat pengantar (Document)
+			$document->updateOverallStatus();
 
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return back()->with('error', 'Terjadi kesalahan saat menyimpan review: ' . $e->getMessage());
-        }
-    }
+			// 5. Logika disposisi (bisa dikembangkan lebih lanjut)
+			// Di sini Anda bisa menambahkan notifikasi email atau logic lain
+			if ($validated['disposition'] === 'to_owner') {
+				// TODO: Kirim notifikasi ke Owner
+			}
+
+			DB::commit();
+
+			return redirect()->route('documents.index', ['package' => $package->id])
+							->with('success', 'Hasil review berhasil disimpan.');
+
+		} catch (\Exception $e) {
+			DB::rollBack();
+			return back()->with('error', 'Gagal menyimpan review: ' . $e->getMessage())->withInput();
+		}
+	}
 	
 	public function destroy(Package $package, Document $document)
     {

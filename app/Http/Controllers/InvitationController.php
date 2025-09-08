@@ -35,7 +35,8 @@ class InvitationController extends Controller
 			'teamMembers' => $teamMembers,
 			'pendingInvitations' => $pendingInvitations,
 			'roles' => $roles, // Kirim kamus peran ke view
-	]);
+		]);
+	}	
 
     /**
      * Menyimpan dan mengirim undangan baru.

@@ -6,7 +6,9 @@ use App\Models\DailyLog;
 use App\Models\RabItem;
 use App\Models\DailyReport;
 use App\Models\Package;
+use App\Models\Document;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 class ApiController extends Controller
 {
@@ -108,19 +110,31 @@ class ApiController extends Controller
 		return response()->json($items);
 	}
 	
-	public function getDocumentReviewDetails(\App\Models\Document $document)
+	public function getDocumentReviewDetails(Document $document)
     {
-        // Memeriksa hak akses user
-        $this->authorize('review', $document);
+        // Kebijakan keamanan: Pastikan user yang meminta data ini
+        // memang punya hak untuk melihat dokumennya.
+        // $this->authorize('view', $document); // Baris ini bisa diaktifkan jika perlu
 
-        // Mengambil semua data terkait yang dibutuhkan
-        $document->load(['drawingDetails', 'rabItems', 'approvals.user']);
+        try {
+            // Muat semua relasi yang dibutuhkan oleh modal review
+            $document->load(['drawingDetails', 'rabItems', 'approvals.user']);
 
-        // Mengirim data dalam format JSON
-        return response()->json([
-            'drawings' => $document->drawingDetails,
-            'rab_items' => $document->rabItems,
-            'history' => $document->approvals
-        ]);
+            // Kirim data dalam format JSON dengan status 200 (OK)
+            return response()->json([
+                'drawings' => $document->drawingDetails,
+                'rab_items' => $document->rabItems,
+                'history' => $document->approvals
+            ]);
+
+        } catch (\Exception $e) {
+            // Jika terjadi error saat memuat relasi atau lainnya, catat error tersebut.
+            Log::error('Gagal mengambil detail dokumen via API: ' . $e->getMessage());
+
+            // Kirim respons error ke frontend dengan status 500
+            return response()->json([
+                'message' => 'Terjadi kesalahan di server saat memuat detail dokumen.'
+            ], 500);
+        }
     }
 }

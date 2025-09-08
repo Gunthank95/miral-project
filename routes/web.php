@@ -179,13 +179,11 @@ Route::middleware('auth')->group(function () {
 	
 	// ===================================================================
 	// ======== AWAL BLOK PUSAT PERSETUJUAN (STRUKTUR BARU) ========
-	// ===================================================================
 	Route::prefix('package/{package}')->group(function () {
 
 		// --- SHOP DRAWING (DOKUMEN) ---
-		// URL baru akan menjadi: /package/1/shop-drawing
 		Route::resource('shop-drawing', DocumentController::class)->except('show')->names([
-			'index'   => 'documents.index', // Nama route sengaja dipertahankan agar tidak banyak merubah di file lain
+			'index'   => 'documents.index',
 			'create'  => 'documents.create',
 			'store'   => 'documents.store',
 			'edit'    => 'documents.edit',
@@ -193,18 +191,13 @@ Route::middleware('auth')->group(function () {
 			'destroy' => 'documents.destroy',
 		]);
 
-		// URL baru untuk form pengajuan: /package/1/shop-drawing/create-submission
 		Route::get('shop-drawing/create-submission', [DocumentController::class, 'createSubmission'])->name('documents.create_submission');
 		Route::post('shop-drawing/store-submission', [DocumentController::class, 'storeSubmission'])->name('documents.store_submission');
 
-		// Hanya ada SATU route untuk review, lebih rapi dan terpusat
+		// INI ADALAH ROUTE YANG KITA PANGGIL. PASTIKAN SUDAH ADA.
 		Route::post('shop-drawing/{shop_drawing}/review', [DocumentController::class, 'storeReview'])->name('documents.storeReview');
 		
-		// URL untuk menampilkan halaman form unggah revisi
 		Route::get('shop-drawing/{document}/revise', [DocumentController::class, 'createRevision'])->name('documents.createRevision');
-
-		// --- NANTI ROUTE UNTUK PERSETUJUAN MATERIAL & METODE KERJA BISA DITAMBAHKAN DI SINI ---
-
 	});
 	// ===================================================================
 	// ======== AKHIR BLOK PUSAT PERSETUJUAN (STRUKTUR BARU) ========

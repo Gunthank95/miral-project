@@ -48,6 +48,13 @@
                     <label for="project_location" class="block text-sm font-medium text-gray-700">Lokasi Proyek</label>
                     <input type="text" name="project_location" id="project_location" value="{{ old('project_location') }}" required class="mt-1 w-full border rounded px-3 py-2">
                 </div>
+				<div class="mb-4">
+					<label for="position_title" class="block text-sm font-medium text-gray-700">
+						Jabatan Anda sebagai Pendaftar Proyek
+					</label>
+					<input id="position_title" class="mt-1 w-full border rounded px-3 py-2" type="text" name="position_title" value="{{ old('position_title', 'Project Manager') }}" required placeholder="Contoh: Project Manager" />
+					<p class="text-xs text-gray-500 mt-1">Jabatan Anda akan disimpan sebagai Project Manager di proyek ini.</p>
+				</div>
             </div>
         </div>
 

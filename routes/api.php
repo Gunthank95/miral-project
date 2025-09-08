@@ -3,6 +3,7 @@
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\ScheduleController;
+use App\Http\Controllers\ApiController;
 
 /*
 |--------------------------------------------------------------------------
@@ -14,12 +15,25 @@ use App\Http\Controllers\ScheduleController;
 | is assigned the "api" middleware group. Enjoy building your API!
 |
 */
-Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
-	return $request->user();
-		
-	Route::get('/schedule-data/{package}', [ScheduleController::class, 'getScheduleData']);
-	Route::get('/packages/{package}/main-rab-items', [\App\Http\Controllers\ApiController::class, 'getMainRabItems']);
-	Route::get('/documents/{document}/review-details', [\App\Http\Controllers\ApiController::class, 'getDocumentReviewDetails'])->name('api.documents.review_details');
+
+// Middleware 'auth:sanctum' akan melindungi semua route di dalam grup ini
+Route::middleware('auth:sanctum')->group(function () {
+    
+    Route::get('/user', function (Request $request) {
+        return $request->user();
+    });
+    
+    // =================================================================
+    // PINDAHKAN ROUTE LAINNYA KE SINI, DI LUAR CLOSURE /user
+    // =================================================================
+    Route::get('/schedule-data/{package}', [ScheduleController::class, 'getScheduleData']);
+    
+    Route::get('/packages/{package}/main-rab-items', [ApiController::class, 'getMainRabItems']);
+    
+    // INI ROUTE YANG MENYEBABKAN 404, SEKARANG SUDAH BENAR
+    Route::get('/documents/{document}/review-details', 
+               [ApiController::class, 'getDocumentReviewDetails'])
+               ->name('api.documents.review_details');
 });
 
 

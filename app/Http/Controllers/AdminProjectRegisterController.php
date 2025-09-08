@@ -17,15 +17,18 @@ class AdminProjectRegisterController extends Controller
      * Menampilkan form registrasi Admin Project.
      */
     public function showRegistrationForm()
-    {
-        return view('auth.register');
-    }
+	{
+		// Ambil daftar level jabatan dari file config
+		$roles = config('roles.levels');
+		return view('auth.register', compact('roles')); // Kirim ke view
+	}
 
     /**
      * Memproses pendaftaran Admin Project baru.
      */
     public function register(Request $request)
 	{
+		$roleKeys = array_keys(config('roles.levels'));
 		$request->validate([
             'project_name' => ['required', 'string', 'max:255'],
             'company_name' => ['required', 'string', 'max:255'],
@@ -35,6 +38,8 @@ class AdminProjectRegisterController extends Controller
 			'email' => ['required', 'string', 'email', 'max:255', 'unique:users'],
 			'password' => ['required', 'string', 'min:8', 'confirmed'],
 			'token' => ['required', 'string'],
+			'position_title' => ['required', 'string', 'max:255'],
+			'role_level' => ['required', 'string', Rule::in($roleKeys)],
 		]);
 
 		$token = \App\Models\RegistrationToken::where('token', $request->token)->whereNull('used_at')->first();
@@ -42,8 +47,9 @@ class AdminProjectRegisterController extends Controller
 		if (!$token) {
 			return back()->withErrors(['token' => 'Token registrasi tidak valid atau sudah digunakan.'])->withInput();
 		}
-
+		
 		\Illuminate\Support\Facades\DB::beginTransaction();
+		DB::beginTransaction();
 		try {
 			// TAMBAHKAN: Cek jika perusahaan dengan nama yang sama sudah ada
             $company = \App\Models\Company::firstOrCreate(
@@ -55,7 +61,8 @@ class AdminProjectRegisterController extends Controller
 				'name' => $request->name,
 				'email' => $request->email,
 				'password' => \Illuminate\Support\Facades\Hash::make($request->password),
-				'role' => 'admin_project',
+				'role' => 'admin_project', // atau role lain yang sesuai
+				'position_title' => $request->position_title, // Simpan Nama Jabatan
                 'position' => $request->position,
                 'temp_project_name' => $request->project_name,
 				'company_id' => $company->id,
