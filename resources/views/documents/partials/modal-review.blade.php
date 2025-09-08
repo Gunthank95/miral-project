@@ -60,14 +60,26 @@
                                 <textarea id="overall_notes" name="overall_notes" rows="3" class="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"></textarea>
                             </div>
                             <div>
-                                <label for="disposition" class="block text-sm font-medium text-gray-700">Disposisi / Lanjutkan Ke</label>
-                                <select id="disposition" name="disposition" class="mt-1 block w-full py-2 px-3 border border-gray-300 rounded-md" required>
-                                    <option value="">-- Pilih Tujuan --</option>
-                                    <option value="to_team_leader">Teruskan ke Team Leader</option>
-                                    <option value="to_owner">Teruskan ke Owner</option>
-                                    <option value="final_approve">Finalisasi Persetujuan (Otoritas Tertinggi)</option>
-                                </select>
-                            </div>
+								<label for="disposition" class="block text-sm font-medium text-gray-700">Keputusan / Disposisi</label>
+								<select id="disposition" name="disposition" class="mt-1 block w-full py-2 px-3 border border-gray-300 rounded-md" required>
+									<option value="">-- Pilih Keputusan --</option>
+									
+									{{-- Tampilkan opsi ini HANYA JIKA status dokumen 'pending' --}}
+									<template x-if="reviewModal.details.document_status === 'pending'">
+										<option value="to_owner">Teruskan ke Owner</option>
+									</template>
+
+									{{-- Tampilkan opsi ini HANYA JIKA status dokumen 'menunggu_persetujuan_owner' --}}
+									<template x-if="reviewModal.details.document_status === 'menunggu_persetujuan_owner'">
+										<option value="owner_approved">Final: Disetujui Owner</option>
+									</template>
+									
+									{{-- Opsi ini bisa muncul di kedua kondisi di atas --}}
+									<template x-if="reviewModal.details.document_status === 'menunggu_persetujuan_owner'">
+										<option value="owner_rejected">Final: Ditolak / Revisi</option>
+									</template>
+
+								</select>                            </div>
                         </div>
                     </div>
                     {{-- Footer Tombol Aksi Form --}}

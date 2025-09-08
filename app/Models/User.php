@@ -127,4 +127,63 @@ class User extends Authenticatable
         // Mengembalikan nilai dari kolom 'role_level' yang baru
         return $roleRecord ? $roleRecord->role_level : null;
     }
+	
+	/**
+     * Memeriksa apakah perusahaan pengguna berperan sebagai Kontraktor di proyek tertentu.
+     *
+     * @param int $projectId
+     * @return bool
+     */
+    public function isContractorInProject($projectId): bool
+    {
+        // Jika pengguna tidak memiliki perusahaan, langsung kembalikan false.
+        if (!$this->company_id) {
+            return false;
+        }
+
+        // Cek di tabel pivot project_companies
+        return \Illuminate\Support\Facades\DB::table('project_companies')
+            ->where('project_id', $projectId)
+            ->where('company_id', $this->company_id)
+            ->where('role_in_project', 'like', 'Kontraktor%') // Menggunakan 'like' untuk mencakup 'Kontraktor - Paket A'
+            ->exists();
+    }
+	
+	/**
+     * Memeriksa apakah perusahaan pengguna berperan sebagai MK di proyek tertentu.
+     *
+     * @param int $projectId
+     * @return bool
+     */
+    public function isMKInProject($projectId): bool
+    {
+        if (!$this->company_id) {
+            return false;
+        }
+
+        return \Illuminate\Support\Facades\DB::table('project_companies')
+            ->where('project_id', $projectId)
+            ->where('company_id', $this->company_id)
+            ->where('role_in_project', 'like', 'MK%')
+            ->exists();
+    }
+	
+	/**
+     * Memeriksa apakah perusahaan pengguna berperan sebagai Owner di proyek tertentu.
+     *
+     * @param int $projectId
+     * @return bool
+     */
+    public function isOwnerInProject($projectId): bool
+    {
+        if (!$this->company_id) {
+            return false;
+        }
+
+        return \Illuminate\Support\Facades\DB::table('project_companies')
+            ->where('project_id', $projectId)
+            ->where('company_id', $this->company_id)
+            ->where('role_in_project', 'like', 'Owner%')
+            ->exists();
+    }
 }

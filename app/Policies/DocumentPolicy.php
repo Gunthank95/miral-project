@@ -38,16 +38,18 @@ class DocumentPolicy
     }
 
     /**
-     * Siapa yang boleh membuat dokumen baru? (Hanya Kontraktor di proyek aktif)
+     * Siapa yang boleh membuat dokumen baru?
+     * Logika baru: Pengguna yang perusahaannya adalah Kontraktor di proyek ini.
      */
     public function create(User $user): bool
     {
         $activeProjectId = session('active_project_id'); 
         if (!$activeProjectId) {
-            return false; // Jika tidak ada proyek aktif, tolak akses
+            return false;
         }
-        // Periksa peran user di proyek yang aktif
-        return $user->getRoleInProject($activeProjectId) === 'kontraktor';
+        
+        // Gunakan fungsi helper baru kita
+        return $user->isContractorInProject($activeProjectId);
     }
     
     /**
@@ -56,22 +58,20 @@ class DocumentPolicy
      */
     public function review(User $user, Document $document): bool
     {
-        // 1. Ambil ID Proyek langsung dari dokumen yang bersangkutan. Ini lebih aman.
         $projectId = $document->package->project_id;
-
-        // 2. Ambil level pengguna dari fungsi helper kita untuk proyek tersebut.
         $userLevel = $user->getLevelInProject($projectId);
+        $requiredLevel = config('roles.levels.supervisor.level');
 
-        // 3. Ambil level minimum yang dibutuhkan dari config.
-        $requiredLevel = config('roles.levels.supervisor.level'); // Minimal Supervisor
+        // Aturan untuk MK:
+        // Levelnya harus >= Supervisor DAN status dokumen 'pending'
+        $isMKReviewer = ($userLevel !== null && $userLevel >= $requiredLevel && $document->status === 'pending');
 
-        // 4. Tolak jika pengguna tidak punya level atau levelnya di bawah standar.
-        if ($userLevel === null || $userLevel < $requiredLevel) {
-            return false;
-        }
+        // Aturan untuk Owner:
+        // Dia adalah Owner di proyek ini DAN status dokumen 'menunggu_persetujuan_owner'
+        $isOwnerReviewer = ($user->isOwnerInProject($projectId) && $document->status === 'menunggu_persetujuan_owner');
 
-        // 5. Izinkan hanya jika status dokumennya masih 'pending'.
-        return $document->status === 'pending';
+        // Izinkan jika salah satu dari dua kondisi di atas terpenuhi.
+        return $isMKReviewer || $isOwnerReviewer;
     }
 
     /**

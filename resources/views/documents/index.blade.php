@@ -1,9 +1,8 @@
 @extends('layouts.app')
 
-@section('title', 'Approval Shop Drawing')
+@section('title', 'Pusat Kendali Persetujuan Shop Drawing')
 
 @section('content')
-{{-- UBAH x-data DI SINI --}}
 <div class="p-4 sm:p-6" x-data="shopDrawingApprovalPage">
     <header class="bg-white shadow p-4 rounded-lg mb-6">
         <div class="flex justify-between items-center">
@@ -11,9 +10,10 @@
                 <h1 class="text-2xl font-bold text-gray-800">Pusat Kendali Persetujuan Shop Drawing</h1>
                 <p class="text-sm text-gray-500">Proyek: {{ $package->project->name }} - Paket: {{ $package->name }}</p>
             </div>
+            {{-- TOMBOL + AJUKAN SHOP DRAWING (DIPERBAIKI) --}}
             @can('create', App\Models\Document::class)
             <a href="{{ route('documents.create_submission', ['package' => $package->id]) }}" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded">
-                + Ajukan Dokumen
+                + Ajukan Shop Drawing
             </a>
             @endcan
         </div>
@@ -25,7 +25,7 @@
         </div>
     @endif
 
-    <main>
+   <main>
         <div class="bg-white p-4 rounded-lg shadow">
             <div class="overflow-x-auto">
                 <table class="min-w-full text-sm">
@@ -67,14 +67,22 @@
                                         {{ $config['text'] }}
                                     </span>
                                 </td>
-                                <td class="px-6 py-4 text-center">
-                                    <div class="flex items-center justify-center space-x-3">
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                    <div class="flex items-center justify-center space-x-4">
+                                        {{-- TOMBOL LIHAT FILE (DIPERBAIKI) --}}
+                                        @if($document->files->isNotEmpty())
+                                            <button @click="openFileViewerModal({{ $document->files }})" class="text-gray-500 hover:text-indigo-600" title="Lihat File">
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2-2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clip-rule="evenodd" /></svg>
+                                            </button>
+                                        @endif
+
                                         @can('review', $document)
                                             <button @click="openReviewModal('{{ route('documents.storeReview', ['package' => $package->id, 'shop_drawing' => $document->id]) }}', '{{ $document->document_number }}', {{ $document->id }})"
                                                     class="text-indigo-600 hover:text-indigo-900 font-bold text-sm">
                                                 Review
                                             </button>
                                         @endcan
+
                                         @can('resubmit', $document)
                                             <a href="#" class="text-yellow-600 hover:text-yellow-900 font-bold text-sm">
                                                 Revisi
@@ -146,7 +154,27 @@
         </div>
     </main>
     
-    {{-- MODAL REVIEW (Digabung ke sini) --}}
+    {{-- MODAL UNTUK MELIHAT FILE (DITAMBAHKAN KEMBALI) --}}
+    <div x-show="fileModalOpen" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+        <div @click.away="fileModalOpen = false" class="bg-white rounded-lg shadow-xl p-6 w-full max-w-lg mx-4">
+            <div class="flex justify-between items-center border-b pb-3 mb-4">
+                <h2 class="text-xl font-bold">File Terlampir</h2>
+                <button @click="fileModalOpen = false" class="text-gray-500 hover:text-gray-800 text-2xl">&times;</button>
+            </div>
+            <div class="space-y-2 max-h-60 overflow-y-auto">
+                <template x-if="documentFiles.length > 0">
+                    <template x-for="file in documentFiles" :key="file.id">
+                        <a :href="'/storage/' + file.file_path" target="_blank" class="block p-2 text-blue-600 hover:bg-gray-100 rounded" x-text="file.original_filename"></a>
+                    </template>
+                </template>
+            </div>
+            <div class="mt-6 flex justify-end">
+                <button type="button" @click="fileModalOpen = false" class="bg-gray-200 text-gray-800 py-2 px-4 rounded-md text-sm font-medium hover:bg-gray-300">Tutup</button>
+            </div>
+        </div>
+    </div>
+	
+	{{-- MODAL REVIEW (Digabung ke sini) --}}
     <div x-show="reviewModal.open" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60" aria-labelledby="modal-title" role="dialog" aria-modal="true">
         <div @click.away="closeReviewModal()" class="bg-gray-50 rounded-lg shadow-xl w-full max-w-4xl mx-4 max-h-[90vh] flex flex-col">
             <div class="bg-white p-4 border-b rounded-t-lg"><h2 id="modal-title" class="text-xl font-bold">Formulir Review Shop Drawing</h2><p class="text-sm text-gray-500">No. Surat: <strong x-text="reviewModal.documentTitle"></strong></p></div>
@@ -171,14 +199,16 @@
 <script>
     document.addEventListener('alpine:init', () => {
         Alpine.data('shopDrawingApprovalPage', () => ({
-            reviewModal: {
-                open: false,
-                loading: true,
-                actionUrl: '',
-                documentTitle: '',
-                documentId: null,
-                details: { drawings: [], rab_items: [], history: [] }
+            fileModalOpen: false, 
+            documentFiles: [],
+            reviewModal: { /* ... */ },
+
+            // FUNGSI UNTUK MODAL FILE (DITAMBAHKAN KEMBALI)
+            openFileViewerModal(files) {
+                this.documentFiles = files;
+                this.fileModalOpen = true;
             },
+
             openReviewModal(actionUrl, title, docId) {
                 console.log('1. Tombol Review diklik.');
                 this.reviewModal.actionUrl = actionUrl;

@@ -14,28 +14,31 @@ class DocumentController extends Controller
 
 	public function index(Request $request, Package $package)
 	{
-		// 1. Siapkan daftar kategori.
-		$categories = [
-			'shop_drawing' => 'Shop Drawing',
-		];
-
-		// 2. Tentukan tab mana yang sedang aktif.
+		$categories = ['shop_drawing' => 'Shop Drawing'];
 		$activeCategory = $request->input('category', 'shop_drawing');
+		$user = Auth::user();
 
-		// 3. Ambil SEMUA dokumen dari paket ini sekaligus.
-		$allDocuments = \App\Models\Document::where('package_id', $package->id)
-			// PASTIKAN SEMUA RELASI INI DIMUAT (EAGER LOADING)
-			->with(['rabItems', 'user', 'approvals.user', 'files', 'drawingDetails']) 
-			->latest()
-			->get();
+		// Ambil query dasar untuk dokumen
+		$query = \App\Models\Document::where('package_id', $package->id)
+			->with(['rabItems', 'user', 'approvals.user', 'files', 'drawingDetails']);
 
-		// 4. Kelompokkan semua dokumen tersebut berdasarkan kategori.
+		// --- LOGIKA FILTER BARU UNTUK OWNER ---
+		// Cek apakah user adalah Owner dan BUKAN MK di proyek ini
+		$isPureOwner = $user->isOwnerInProject($package->project_id) && !$user->isMKInProject($package->project_id);
+
+		if ($isPureOwner) {
+			// Jika dia "hanya" Owner, tampilkan dokumen yang menunggunya saja
+			$query->where('status', 'menunggu_persetujuan_owner');
+		}
+		// --- AKHIR LOGIKA FILTER ---
+
+		// Lanjutkan query seperti biasa
+		$allDocuments = $query->latest()->get();
+
 		$documentsByCategory = $allDocuments->groupBy(function ($item, $key) {
-			// Membuat semua nama kategori menjadi standar: huruf kecil dan pakai underscore
 			return str_replace(' ', '_', strtolower($item->category));
 		});
 		
-		// 5. Kirim semua data yang sudah siap ke halaman tampilan.
 		return view('documents.index', compact('package', 'categories', 'activeCategory', 'documentsByCategory'));
 	}
 	
@@ -315,6 +318,31 @@ class DocumentController extends Controller
 
             // Hitung ulang dan update status keseluruhan dari surat pengantar (Document)
             $shop_drawing->updateOverallStatus();
+
+            // =======================================================
+            // AWAL DARI BLOK LOGIKA DISPOSISI (BARU)
+            // =======================================================
+            // Setelah status per gambar dihitung, kita proses disposisinya.
+            // Hanya proses disposisi jika status keseluruhan adalah 'approved' oleh MK.
+            $disposition = $validated['disposition'];
+
+            // Jika MK meneruskan ke Owner
+            if ($shop_drawing->status === 'approved' && $disposition === 'to_owner') {
+                $shop_drawing->status = 'menunggu_persetujuan_owner';
+                $shop_drawing->save();
+            }
+
+            // Jika Owner membuat keputusan final
+            if ($disposition === 'owner_approved') {
+                $shop_drawing->status = 'approved'; // Status final: approved
+                $shop_drawing->save();
+            } elseif ($disposition === 'owner_rejected') {
+                $shop_drawing->status = 'rejected'; // Status final: rejected
+                $shop_drawing->save();
+            }
+            // =======================================================
+            // AKHIR DARI BLOK LOGIKA DISPOSISI
+            // =======================================================
 
             DB::commit();
 

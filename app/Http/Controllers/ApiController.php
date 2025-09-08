@@ -112,26 +112,23 @@ class ApiController extends Controller
 	
 	public function getDocumentReviewDetails(Document $document)
     {
-        // Kebijakan keamanan: Pastikan user yang meminta data ini
-        // memang punya hak untuk melihat dokumennya.
-        // $this->authorize('view', $document); // Baris ini bisa diaktifkan jika perlu
-
         try {
-            // Muat semua relasi yang dibutuhkan oleh modal review
+            // Memuat semua relasi yang dibutuhkan oleh modal
             $document->load(['drawingDetails', 'rabItems', 'approvals.user']);
 
-            // Kirim data dalam format JSON dengan status 200 (OK)
+            // Mengirim data sebagai respons JSON
             return response()->json([
                 'drawings' => $document->drawingDetails,
                 'rab_items' => $document->rabItems,
-                'history' => $document->approvals
+                'history' => $document->approvals, // <-- KOMA SUDAH DIPERBAIKI
+                'document_status' => $document->status,
             ]);
 
         } catch (\Exception $e) {
-            // Jika terjadi error saat memuat relasi atau lainnya, catat error tersebut.
+            // Mencatat error jika terjadi masalah
             Log::error('Gagal mengambil detail dokumen via API: ' . $e->getMessage());
 
-            // Kirim respons error ke frontend dengan status 500
+            // Mengirim respons error 500
             return response()->json([
                 'message' => 'Terjadi kesalahan di server saat memuat detail dokumen.'
             ], 500);
