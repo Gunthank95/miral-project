@@ -56,23 +56,21 @@ class DocumentPolicy
      */
     public function review(User $user, Document $document): bool
     {
-        $activeProjectId = session('active_project_id');
-        if (!$activeProjectId) {
-            return false;
-        }
+        // 1. Ambil ID Proyek langsung dari dokumen yang bersangkutan. Ini lebih aman.
+        $projectId = $document->package->project_id;
 
-        // 1. Ambil level pengguna dari fungsi helper baru kita
-        $userLevel = $user->getLevelInProject($activeProjectId);
+        // 2. Ambil level pengguna dari fungsi helper kita untuk proyek tersebut.
+        $userLevel = $user->getLevelInProject($projectId);
 
-        // 2. Ambil level minimum yang dibutuhkan dari config
+        // 3. Ambil level minimum yang dibutuhkan dari config.
         $requiredLevel = config('roles.levels.supervisor.level'); // Minimal Supervisor
 
-        // 3. Tolak jika pengguna tidak punya level atau levelnya di bawah standar
+        // 4. Tolak jika pengguna tidak punya level atau levelnya di bawah standar.
         if ($userLevel === null || $userLevel < $requiredLevel) {
             return false;
         }
 
-        // 4. Izinkan jika status dokumennya 'pending'
+        // 5. Izinkan hanya jika status dokumennya masih 'pending'.
         return $document->status === 'pending';
     }
 
