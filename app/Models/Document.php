@@ -8,6 +8,15 @@ use Illuminate\Database\Eloquent\Model;
 class Document extends Model
 {
     use HasFactory;
+	
+	protected $guarded = ['id'];
+	
+	/**
+     * Relasi yang akan selalu dimuat bersama model Document.
+     *
+     * @var array
+     */
+    protected $with = ['package'];
 
     /**
      * The attributes that are mass assignable.
@@ -32,7 +41,12 @@ class Document extends Model
 		'parent_id',
 	];
 
-    /**
+    public function package()
+    {
+        return $this->belongsTo(Package::class);
+    }
+		
+	/**
      * Mendapatkan data user yang mengupload dokumen.
      */
     public function user()

@@ -264,72 +264,68 @@ class DocumentController extends Controller
 	/**
      * Menyimpan hasil review dari MK.
      */
-    public function storeReview(Request $request, Package $package, Document $document)
-	{
-		$this->authorize('review', $document);
+    public function storeReview(Request $request, Package $package, Document $shop_drawing)
+    {
+        // Gunakan $shop_drawing agar cocok dengan route
+        $this->authorize('review', $shop_drawing);
 
-		$validated = $request->validate([
-			'drawings' => 'required|array',
-			'drawings.*.status' => 'required|string|in:approved,revision,rejected',
-			'drawings.*.notes' => 'nullable|string',
-			
-			'rab_items' => 'nullable|array',
-			'rab_items.*.completion_status' => 'required|string|in:lengkap,belum_lengkap',
-			
-			'overall_notes' => 'nullable|string',
-			'disposition' => 'required|string', // Contoh: 'to_owner', 'final_approve'
-		]);
+        $validated = $request->validate([
+            'drawings' => 'required|array',
+            'drawings.*.status' => 'required|string|in:approved,revision,rejected',
+            'drawings.*.notes' => 'nullable|string',
+            
+            'rab_items' => 'nullable|array',
+            'rab_items.*.completion_status' => 'required|string|in:lengkap,belum_lengkap',
+            
+            'overall_notes' => 'nullable|string',
+            'disposition' => 'required|string',
+        ]);
 
-		DB::beginTransaction();
-		try {
-			// 1. Update status dan catatan untuk setiap gambar (DrawingDetail)
-			foreach ($validated['drawings'] as $id => $data) {
-				$drawingDetail = \App\Models\DrawingDetail::find($id);
-				if ($drawingDetail && $drawingDetail->document_id == $document->id) {
-					$drawingDetail->update([
-						'status' => $data['status'],
-						'notes' => $data['notes'],
-						'reviewed_by' => Auth::id(),
-						'review_date' => now(),
-					]);
-				}
-			}
+        DB::beginTransaction();
+        try {
+            // Update status dan catatan untuk setiap gambar (DrawingDetail)
+            foreach ($validated['drawings'] as $id => $data) {
+                $drawingDetail = \App\Models\DrawingDetail::find($id);
+                // Pastikan drawing detail ini milik dokumen yang benar
+                if ($drawingDetail && $drawingDetail->document_id == $shop_drawing->id) {
+                    $drawingDetail->update([
+                        'status' => $data['status'],
+                        'notes' => $data['notes'],
+                        'reviewed_by' => Auth::id(),
+                        'review_date' => now(),
+                    ]);
+                }
+            }
 
-			// 2. Update status kelengkapan item pekerjaan di tabel pivot
-			if (!empty($validated['rab_items'])) {
-				$rabSyncData = [];
-				foreach ($validated['rab_items'] as $rabId => $details) {
-					$rabSyncData[$rabId] = ['completion_status' => $details['completion_status']];
-				}
-				$document->rabItems()->sync($rabSyncData);
-			}
+            // Update status kelengkapan item pekerjaan di tabel pivot
+            if (!empty($validated['rab_items'])) {
+                $rabSyncData = [];
+                foreach ($validated['rab_items'] as $rabId => $details) {
+                    $rabSyncData[$rabId] = ['completion_status' => $details['completion_status']];
+                }
+                $shop_drawing->rabItems()->syncWithoutDetaching($rabSyncData);
+            }
 
-			// 3. Buat catatan riwayat baru untuk proses review ini
-			$document->approvals()->create([
-				'user_id' => Auth::id(),
-				'status' => $validated['disposition'], // Status di riwayat mencerminkan disposisi
-				'notes' => $validated['overall_notes'],
-			]);
+            // Buat catatan riwayat baru untuk proses review ini
+            $shop_drawing->approvals()->create([
+                'user_id' => Auth::id(),
+                'status' => $validated['disposition'],
+                'notes' => $validated['overall_notes'],
+            ]);
 
-			// 4. Hitung ulang dan update status keseluruhan dari surat pengantar (Document)
-			$document->updateOverallStatus();
+            // Hitung ulang dan update status keseluruhan dari surat pengantar (Document)
+            $shop_drawing->updateOverallStatus();
 
-			// 5. Logika disposisi (bisa dikembangkan lebih lanjut)
-			// Di sini Anda bisa menambahkan notifikasi email atau logic lain
-			if ($validated['disposition'] === 'to_owner') {
-				// TODO: Kirim notifikasi ke Owner
-			}
+            DB::commit();
 
-			DB::commit();
+            return redirect()->route('documents.index', ['package' => $package->id])
+                            ->with('success', 'Hasil review berhasil disimpan.');
 
-			return redirect()->route('documents.index', ['package' => $package->id])
-							->with('success', 'Hasil review berhasil disimpan.');
-
-		} catch (\Exception $e) {
-			DB::rollBack();
-			return back()->with('error', 'Gagal menyimpan review: ' . $e->getMessage())->withInput();
-		}
-	}
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return back()->with('error', 'Gagal menyimpan review: ' . $e->getMessage())->withInput();
+        }
+    }
 	
 	public function destroy(Package $package, Document $document)
     {
