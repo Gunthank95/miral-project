@@ -75,16 +75,6 @@ class DocumentPolicy
     }
 
     /**
-     * Siapa yang boleh mengunggah revisi?
-     * Hanya user yang membuat dokumen (Kontraktor), dan hanya jika statusnya 'revision'.
-     */
-    public function resubmit(User $user, Document $document): bool
-    {
-        // Hanya pembuat asli dan statusnya harus 'revision'
-        return $user->id === $document->user_id && $document->status === 'revision';
-    }
-
-    /**
      * Siapa yang boleh mengupdate dokumen?
      * Hanya pembuat asli dan sebelum ada proses approval.
      */
@@ -119,8 +109,8 @@ class DocumentPolicy
         // 2. Pastikan dokumen ini diajukan oleh user yang sama
         $isSubmitter = ($document->user_id === $user->id);
 
-        // 3. Pastikan status dokumen adalah 'revision'
-        $isRevisionStatus = ($document->status === 'revision');
+        // 3. Pastikan status dokumen adalah 'revision' atau 'rejected'
+        $isRevisionStatus = in_array($document->status, ['revision', 'rejected']);
 
         return $isContractor && $isSubmitter && $isRevisionStatus;
     }
