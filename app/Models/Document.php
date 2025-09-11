@@ -106,4 +106,20 @@ class Document extends Model
 
 		$this->save();
 	}
+	
+	/**
+     * Relasi ke dokumen induk (jika ini adalah dokumen revisi).
+     */
+    public function parentDocument()
+    {
+        return $this->belongsTo(Document::class, 'parent_document_id');
+    }
+
+    /**
+     * Relasi ke dokumen revisi (jika dokumen ini memiliki revisi).
+     */
+    public function revisions()
+    {
+        return $this->hasMany(Document::class, 'parent_document_id');
+    }
 }

@@ -110,6 +110,95 @@ class DocumentController extends Controller
             'selectedRabItems' => $selectedRabItems,
         ]);
     }
+	
+	/**
+     * Menampilkan form untuk mengajukan revisi shop drawing.
+     * Data dari dokumen asli akan di-prefill.
+     */
+    public function createRevisionForm(Package $package, Document $shop_drawing)
+    {
+        // Pastikan pengguna diizinkan untuk mengajukan revisi
+        $this->authorize('resubmit', $shop_drawing);
+
+        // Muat detail gambar dan item RAB dari dokumen asli
+        $shop_drawing->load('drawingDetails', 'rabItems');
+
+        return view('documents.create_revision', compact('package', 'shop_drawing'));
+    }
+
+    /**
+     * Menyimpan pengajuan revisi shop drawing baru.
+     */
+    public function storeRevision(Request $request, Package $package, Document $parent_document)
+    {
+        $this->authorize('resubmit', $parent_document);
+
+        $validated = $request->validate([
+            'document_number' => 'required|string|max:255',
+            'title' => 'required|string|max:255',
+            'category' => 'required|string|in:shop_drawing',
+            'files.*' => 'nullable|file|mimes:pdf|max:10240', // Max 10MB per file
+            'drawings' => 'required|array|min:1',
+            'drawings.*.number' => 'required|string|max:255',
+            'drawings.*.title' => 'required|string|max:255',
+            'rab_items' => 'nullable|array',
+            'rab_items.*.id' => 'required|exists:rab_items,id',
+            'rab_items.*.completion_status' => 'required|string|in:lengkap,belum_lengkap',
+        ]);
+
+        DB::beginTransaction();
+        try {
+            // Buat dokumen revisi baru
+            $document = $package->documents()->create([
+                'user_id' => Auth::id(),
+                'document_number' => $validated['document_number'],
+                'title' => $validated['title'],
+                'category' => $validated['category'],
+                'status' => 'pending', // Revisi selalu dimulai dengan status pending
+                'parent_document_id' => $parent_document->id, // Ini menandakan sebagai revisi
+            ]);
+
+            // Simpan detail gambar
+            foreach ($validated['drawings'] as $drawingData) {
+                $document->drawingDetails()->create([
+                    'drawing_number' => $drawingData['number'],
+                    'drawing_title' => $drawingData['title'],
+                    'status' => 'pending',
+                ]);
+            }
+
+            // Simpan file yang diunggah
+            if ($request->hasFile('files')) {
+                foreach ($request->file('files') as $file) {
+                    $path = $file->store('public/documents'); // Simpan di storage/app/public/documents
+                    $document->files()->create([
+                        'original_filename' => $file->getClientOriginalName(),
+                        'file_path' => str_replace('public/', '', $path), // Simpan path relatif
+                    ]);
+                }
+            }
+
+            // Sinkronkan item RAB
+            if (!empty($validated['rab_items'])) {
+                $rabSyncData = [];
+                foreach ($validated['rab_items'] as $rabItemData) {
+                    $rabSyncData[$rabItemData['id']] = ['completion_status' => $rabItemData['completion_status']];
+                }
+                $document->rabItems()->sync($rabSyncData);
+            }
+
+            DB::commit();
+
+            return redirect()->route('documents.index', ['package' => $package->id])
+                             ->with('success', 'Revisi Shop Drawing berhasil diajukan.');
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Gagal mengajukan revisi shop drawing: ' . $e->getMessage());
+            return back()->with('error', 'Gagal mengajukan revisi: ' . $e->getMessage())->withInput();
+        }
+    }
+	
 
     /**
      * Menyimpan dokumen baru.

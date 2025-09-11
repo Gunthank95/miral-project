@@ -193,14 +193,18 @@ Route::middleware('auth')->group(function () {
 
 		Route::get('shop-drawing/create-submission', [DocumentController::class, 'createSubmission'])->name('documents.create_submission');
 		Route::post('shop-drawing/store-submission', [DocumentController::class, 'storeSubmission'])->name('documents.store_submission');
+		Route::get('{shop_drawing}/revise', [DocumentController::class, 'createRevisionForm'])->name('documents.create_revision_form'); // <-- ROUTE BARU
+		Route::post('{shop_drawing}/revise', [DocumentController::class, 'storeRevision'])->name('documents.store_revision'); // <-- ROUTE BARU
+		
 
 		// INI ADALAH ROUTE YANG KITA PANGGIL. PASTIKAN SUDAH ADA.
 		Route::post('shop-drawing/{shop_drawing}/review', [DocumentController::class, 'storeReview'])->name('documents.storeReview');
-		
 		Route::get('shop-drawing/{document}/revise', [DocumentController::class, 'createRevision'])->name('documents.createRevision');
+		
+		
 	});
 	// ===================================================================
-	// ======== AKHIR BLOK PUSAT PERSETUJUAN (STRUKTUR BARU) ========
+	// ========== AKHIR BLOK PUSAT PERSETUJUAN (STRUKTUR BARU) ===========
 	// ===================================================================
 });
 

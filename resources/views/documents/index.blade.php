@@ -60,6 +60,7 @@
                                             'revision' => ['text' => 'Revisi', 'color' => 'yellow'],
                                             'approved' => ['text' => 'Disetujui', 'color' => 'green'],
                                             'rejected' => ['text' => 'Ditolak', 'color' => 'red'],
+											'menunggu_persetujuan_owner' => ['text' => 'Menunggu Persetujuan Owner', 'color' => 'purple'],
                                         ];
                                         $config = $statusConfig[strtolower($document->status)] ?? ['text' => ucfirst($document->status), 'color' => 'gray'];
                                     @endphp
@@ -84,10 +85,10 @@
                                         @endcan
 
                                         @can('resubmit', $document)
-                                            <a href="#" class="text-yellow-600 hover:text-yellow-900 font-bold text-sm">
-                                                Revisi
-                                            </a>
-                                        @endcan
+											<a href="{{ route('documents.create_revision_form', ['package' => $package->id, 'shop_drawing' => $document->id]) }}" class="text-yellow-600 hover:text-yellow-900 font-bold text-sm" title="Ajukan Revisi">
+												Revisi
+											</a>
+										@endcan
                                     </div>
                                 </td>
                             </tr>

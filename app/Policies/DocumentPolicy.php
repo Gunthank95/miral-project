@@ -102,4 +102,26 @@ class DocumentPolicy
     {
         return $user->id === $document->user_id && in_array($document->status, ['pending', 'revision']);
     }
+	
+	// ... (fungsi review sebelumnya) ...
+
+    /**
+     * Siapa yang boleh mengajukan revisi (resubmit) dokumen?
+     * Logika: Hanya Kontraktor yang mengajukan dan dokumen berstatus 'revision'.
+     */
+    public function resubmit(User $user, Document $document): bool
+    {
+        $projectId = $document->package->project_id;
+
+        // 1. Pastikan pengguna adalah Kontraktor di proyek ini
+        $isContractor = $user->isContractorInProject($projectId);
+
+        // 2. Pastikan dokumen ini diajukan oleh user yang sama
+        $isSubmitter = ($document->user_id === $user->id);
+
+        // 3. Pastikan status dokumen adalah 'revision'
+        $isRevisionStatus = ($document->status === 'revision');
+
+        return $isContractor && $isSubmitter && $isRevisionStatus;
+    }
 }
