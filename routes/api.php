@@ -27,13 +27,15 @@ Route::middleware('auth:sanctum')->group(function () {
     // PINDAHKAN ROUTE LAINNYA KE SINI, DI LUAR CLOSURE /user
     // =================================================================
     Route::get('/schedule-data/{package}', [ScheduleController::class, 'getScheduleData']);
-    
     Route::get('/packages/{package}/main-rab-items', [ApiController::class, 'getMainRabItems']);
-    
+	Route::get('/rab-item/{rab_item}/last-activity/{package}', [ApiController::class, 'getLastActivityData'])->name('api.rab.last_activity');    
+	
     // INI ROUTE YANG MENYEBABKAN 404, SEKARANG SUDAH BENAR
     Route::get('/documents/{document}/review-details', 
-               [ApiController::class, 'getDocumentReviewDetails'])
+               [ApiController::class, 'getReviewDetails']) // <-- UBAH INI
                ->name('api.documents.review_details');
+			   
+
 });
 
 

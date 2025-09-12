@@ -110,28 +110,23 @@ class ApiController extends Controller
 		return response()->json($items);
 	}
 	
-	public function getDocumentReviewDetails(Document $document)
+	/**
+     * BARU: Mengambil detail lengkap dokumen untuk ditampilkan di modal review.
+     */
+    public function getReviewDetails(Document $document)
     {
-        try {
-            // Memuat semua relasi yang dibutuhkan oleh modal
-            $document->load(['drawingDetails', 'rabItems', 'approvals.user']);
+        // Pastikan pengguna yang meminta data ini berwenang untuk me-review
+        $this->authorize('review', $document);
 
-            // Mengirim data sebagai respons JSON
-            return response()->json([
-                'drawings' => $document->drawingDetails,
-                'rab_items' => $document->rabItems,
-                'history' => $document->approvals, // <-- KOMA SUDAH DIPERBAIKI
-                'document_status' => $document->status,
-            ]);
+        // Muat semua relasi yang dibutuhkan oleh modal
+        $document->load(['drawingDetails', 'rabItems', 'approvals.user']);
 
-        } catch (\Exception $e) {
-            // Mencatat error jika terjadi masalah
-            Log::error('Gagal mengambil detail dokumen via API: ' . $e->getMessage());
-
-            // Mengirim respons error 500
-            return response()->json([
-                'message' => 'Terjadi kesalahan di server saat memuat detail dokumen.'
-            ], 500);
-        }
+        // Kembalikan data dalam format JSON yang siap digunakan oleh Alpine.js
+        return response()->json([
+            'drawings' => $document->drawingDetails,
+            'rab_items' => $document->rabItems,
+            'history' => $document->approvals,
+            'document_status' => $document->status, // Ini adalah kunci yang hilang!
+        ]);
     }
 }

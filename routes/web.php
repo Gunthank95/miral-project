@@ -191,20 +191,25 @@ Route::middleware('auth')->group(function () {
 			'destroy' => 'documents.destroy',
 		]);
 
+		// Route untuk menampilkan form pengajuan baru yang detail
 		Route::get('shop-drawing/create-submission', [DocumentController::class, 'createSubmission'])->name('documents.create_submission');
+		
+		// Route untuk MENYIMPAN pengajuan baru yang detail
 		Route::post('shop-drawing/store-submission', [DocumentController::class, 'storeSubmission'])->name('documents.store_submission');
-		Route::get('{shop_drawing}/revise', [DocumentController::class, 'createRevisionForm'])->name('documents.create_revision_form'); // <-- ROUTE BARU
-		Route::post('{shop_drawing}/revise', [DocumentController::class, 'storeRevision'])->name('documents.store_revision'); // <-- ROUTE BARU
 		
+		// Route untuk MENAMPILKAN form revisi (GET)
+		Route::get('shop-drawing/{document}/revise', [DocumentController::class, 'createRevisionForm'])->name('documents.revise');
+		
+		// Route untuk MENYIMPAN data dari form revisi (POST)
+		// Menggunakan {parent_document} untuk kejelasan bahwa ini adalah dokumen asli yang direvisi
+		Route::post('shop-drawing/{parent_document}/store-revision', [DocumentController::class, 'storeRevision'])->name('documents.store_revision');
 
-		// INI ADALAH ROUTE YANG KITA PANGGIL. PASTIKAN SUDAH ADA.
+		// Route untuk MENYIMPAN hasil review dari MK atau Owner (POST)
 		Route::post('shop-drawing/{shop_drawing}/review', [DocumentController::class, 'storeReview'])->name('documents.storeReview');
-		Route::get('shop-drawing/{document}/revise', [DocumentController::class, 'createRevision'])->name('documents.createRevision');
-		
 		
 	});
 	// ===================================================================
-	// ========== AKHIR BLOK PUSAT PERSETUJUAN (STRUKTUR BARU) ===========
+	// ========== AKHIR DARI BLOK PUSAT PERSETUJUAN ===========
 	// ===================================================================
 });
 
