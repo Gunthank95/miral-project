@@ -74,43 +74,42 @@
 			<div class="space-y-4">
 				<h2 class="text-lg font-semibold text-gray-700">Pekerjaan Terkait (RAB)</h2>
 				
-				{{-- Dropdown untuk Sub Item Utama (Induk) --}}
-				<div>
-					<label for="main_rab_item" class="block text-sm font-medium text-gray-700 mb-1">Pilih Sub Item Utama</label>
-					<select id="main_rab_item" placeholder="Pilih sub item untuk memuat pekerjaan...">
-                        <option value="">Pilih sub item...</option>
-                        @foreach($mainRabItems as $item)
-                            <option value="{{ $item->id }}">{{ $item->item_number }} - {{ $item->item_name }}</option>
-                        @endforeach
-                    </select>
-				</div>
-				
-				{{-- Dropdown untuk Item Pekerjaan (Anak) --}}
+				{{-- HAPUS dropdown "main_rab_item" yang lama --}}
+
+				{{-- GANTI dengan dropdown ini --}}
 				<div>
 					<label for="rab_items" class="block text-sm font-medium text-gray-700 mb-1">Pilih Item Pekerjaan</label>
-					<select id="rab_items" multiple placeholder="Pilih satu atau lebih item pekerjaan..."></select>
+					<select id="rab_items" multiple placeholder="Pilih satu atau lebih item pekerjaan...">
+						@foreach ($flatRabItems as $item)
+							<option value="{{ $item['id'] }}" 
+									data-data='{"id": "{{ $item['id'] }}", "name": "{!! addslashes($item['name']) !!}"}'
+									@if($item['disabled']) disabled @endif>
+								{!! $item['name'] !!}
+							</option>
+						@endforeach
+					</select>
 				</div>
 
 				{{-- Area untuk menampilkan daftar item yang dipilih beserta statusnya --}}
 				<div id="rab-status-container" class="space-y-3 border p-4 rounded-md bg-gray-50 hidden">
 					<h3 class="text-md font-semibold text-gray-600">Status Kelengkapan Gambar</h3>
-                    <div id="rab-status-list">
-                        {{-- Daftar status akan di-render di sini oleh JavaScript --}}
-                    </div>
+					<div id="rab-status-list">
+						{{-- Daftar status akan di-render di sini oleh JavaScript --}}
+					</div>
 				</div>
 			</div>
 
-            {{-- Tombol Aksi --}}
-            <div class="flex justify-end pt-6 border-t space-x-3">
-                <a href="{{ route('documents.index', ['package' => $package->id]) }}" class="bg-gray-200 text-gray-800 py-2 px-4 rounded-md text-sm font-medium hover:bg-gray-300">Batal</a>
-                <button type="submit" class="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
-                    Ajukan Dokumen
-                </button>
-            </div>
+						{{-- Tombol Aksi --}}
+						<div class="flex justify-end pt-6 border-t space-x-3">
+							<a href="{{ route('documents.index', ['package' => $package->id]) }}" class="bg-gray-200 text-gray-800 py-2 px-4 rounded-md text-sm font-medium hover:bg-gray-300">Batal</a>
+							<button type="submit" class="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+								Ajukan Dokumen
+							</button>
+						</div>
 
-        </form>
-    </div>
-</div>
+					</form>
+				</div>
+			</div>
 @endsection
 
 @push('scripts')

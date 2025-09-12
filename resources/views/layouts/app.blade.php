@@ -37,6 +37,8 @@
                         <div class="hidden md:block">
                             @include('components.project-selector')
                         </div>
+						
+						@include('layouts.partials.notification-bell')
                         <div x-data="{ open: false }" class="relative">
                             <button @click="open = !open" class="flex items-center space-x-2 focus:outline-none">
                                 <span class="text-sm font-medium text-gray-700">{{ Auth::user()->name }}</span>

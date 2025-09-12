@@ -35,6 +35,9 @@ Route::middleware('auth:sanctum')->group(function () {
                [ApiController::class, 'getReviewDetails']) // <-- UBAH INI
                ->name('api.documents.review_details');
 			   
+	Route::get('/notifications', [ApiController::class, 'getUnreadNotifications'])->name('api.notifications.index');
+	Route::post('/notifications/{notification}/read', [ApiController::class, 'markAsRead'])->name('api.notifications.read');
+			   
 
 });
 

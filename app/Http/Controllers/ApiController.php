@@ -9,6 +9,8 @@ use App\Models\Package;
 use App\Models\Document;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Notifications\DatabaseNotification;
 
 class ApiController extends Controller
 {
@@ -115,18 +117,30 @@ class ApiController extends Controller
      */
     public function getReviewDetails(Document $document)
     {
-        // Pastikan pengguna yang meminta data ini berwenang untuk me-review
         $this->authorize('review', $document);
 
-        // Muat semua relasi yang dibutuhkan oleh modal
         $document->load(['drawingDetails', 'rabItems', 'approvals.user']);
 
-        // Kembalikan data dalam format JSON yang siap digunakan oleh Alpine.js
         return response()->json([
             'drawings' => $document->drawingDetails,
             'rab_items' => $document->rabItems,
             'history' => $document->approvals,
-            'document_status' => $document->status, // Ini adalah kunci yang hilang!
+            'document_status' => $document->status,
         ]);
+    }
+
+    public function getUnreadNotifications()
+    {
+        return Auth::user()->unreadNotifications;
+    }
+
+    public function markAsRead(DatabaseNotification $notification)
+    {
+        if (Auth::id() === $notification->notifiable_id) {
+            $notification->markAsRead();
+            return response()->json(['message' => 'Notification marked as read.']);
+        }
+
+        return response()->json(['message' => 'Unauthorized'], 403);
     }
 }

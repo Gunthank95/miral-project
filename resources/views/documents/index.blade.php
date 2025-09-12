@@ -114,20 +114,27 @@
 </div>
 @endsection
 
+{{-- ... (kode blade di atasnya) ... --}}
+
 @push('scripts')
 <script>
     document.addEventListener('alpine:init', () => {
         Alpine.data('shopDrawingApprovalPage', () => ({
-            fileModalOpen: false,
+            fileModalOpen: false, 
             documentFiles: [],
-            // PERBAIKAN DI SINI: Inisialisasi struktur reviewModal secara lengkap
             reviewModal: {
                 open: false,
-                loading: false,
+                loading: true, // Mulai dengan loading
                 actionUrl: '',
                 documentTitle: '',
                 documentId: null,
-                details: null, // Mulai dengan null
+                // Inisialisasi details dengan struktur yang benar untuk mencegah error awal
+                details: { 
+                    drawings: [], 
+                    rab_items: [], 
+                    history: [],
+                    document_status: ''
+                },
             },
 
             openFileViewerModal(files) {
@@ -136,41 +143,34 @@
             },
 
             openReviewModal(actionUrl, title, docId) {
+                this.reviewModal.open = true;
+                this.reviewModal.loading = true; // Tampilkan loading spinner
                 this.reviewModal.actionUrl = actionUrl;
                 this.reviewModal.documentTitle = title;
                 this.reviewModal.documentId = docId;
-                this.reviewModal.open = true;
-                this.reviewModal.loading = true;
-                this.reviewModal.details = null; // Reset details
-
+                
                 const apiUrl = `/api/documents/${docId}/review-details`;
-
-                fetch(apiUrl, {
-                    method: 'GET',
-                    headers: {
-                        'Accept': 'application/json',
-                        'X-Requested-With': 'XMLHttpRequest',
-                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-                    }
-                })
+                
+                fetch(apiUrl)
                 .then(response => {
-                    if (!response.ok) { throw new Error(`Gagal mengambil data, status: ${response.status}`); }
+                    if (!response.ok) { throw new Error('Gagal mengambil data dari server.'); }
                     return response.json();
                 })
                 .then(data => {
-                    this.reviewModal.details = data;
-                    this.reviewModal.loading = false;
+                    // PERBAIKAN UTAMA DI SINI
+                    // Langsung gunakan data yang diterima dari API
+                    this.reviewModal.details = data; 
+                    this.reviewModal.loading = false; // Sembunyikan loading spinner
                 })
                 .catch(error => {
-                    console.error('Terjadi error saat fetch API:', error);
+                    console.error('Error saat fetch API:', error);
                     this.reviewModal.loading = false;
-                    alert('Gagal memuat detail dokumen. Cek console (F12) untuk detail error.');
+                    alert('Gagal memuat detail dokumen. Silakan coba lagi.');
                     this.closeReviewModal();
                 });
             },
             closeReviewModal() {
                 this.reviewModal.open = false;
-                this.reviewModal.details = null; // Reset kembali ke null
             }
         }));
     });

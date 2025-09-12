@@ -3,10 +3,16 @@
 namespace App\Http\Controllers;
 
 use App\Models\Package;
-use App\Models\Document; // Pastikan ini ditambahkan
+use App\Models\Document;
+use App\Models\RabItem; // <-- KESALAHAN UTAMA DI SINI, BARIS INI HILANG
+use App\Models\DrawingDetail;
+use App\Models\Project;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use App\Notifications\ShopDrawingStatusUpdated;
+use Illuminate\Support\Facades\Notification;
 
 class DocumentController extends Controller
 {
@@ -68,21 +74,22 @@ class DocumentController extends Controller
     }
 	
 	public function createSubmission(Package $package)
-	{
-		$this->authorize('create', Document::class);
+    {
+        $this->authorize('create', Document::class);
 
-		// Ambil data RAB (hanya sub item utama) untuk dropdown
-		$mainRabItems = \App\Models\RabItem::where('package_id', $package->id)
-			->whereNull('parent_id')
-			->orderBy('item_number', 'asc')
-			->get();
+        $allItems = RabItem::where('package_id', $package->id)->get()->sortBy('id');
+        $parentIds = $allItems->whereNotNull('parent_id')->pluck('parent_id')->unique();
 
-		// Kirim data yang dibutuhkan ke view
-		return view('documents.create_submission', [
-			'package' => $package,
-			'mainRabItems' => $mainRabItems,
-		]);
-	}
+        $rabItems = $allItems->map(function ($item) use ($parentIds) {
+            $item->disabled = $parentIds->contains($item->id);
+            return $item;
+        });
+
+        $tree = $this->buildTree($rabItems);
+        $flatRabItems = $this->flattenTreeForDropdown($tree);
+
+        return view('documents.create_submission', compact('package', 'flatRabItems'));
+    }
 	
 	/**
      * Menampilkan form untuk mengunggah revisi sebuah dokumen.
@@ -286,85 +293,79 @@ class DocumentController extends Controller
      * Fungsi ini bisa menangani dokumen baru maupun dokumen revisi.
      */
     public function storeSubmission(Request $request, Package $package)
-	{
-		$this->authorize('create', Document::class);
+    {
+        $this->authorize('create', Document::class);
 
-		// 1. Validasi semua input dari form, termasuk array yang baru
-		$validated = $request->validate([
-			'document_number' => 'required|string|max:255',
-			'drawings' => 'required|array|min:1',
-			'drawings.*.title' => 'required|string|max:255',
-			'drawings.*.number' => 'required|string|max:255',
-			'files' => 'required|array',
-			'files.*' => 'file|mimes:pdf,dwg,zip,rar|max:20480',
-			'rab_items' => 'nullable|array',
-			'rab_items.*.id' => 'required|exists:rab_items,id',
-			'rab_items.*.completion_status' => 'required|in:lengkap,belum_lengkap',
-		]);
+        $validated = $request->validate([
+            'document_number' => 'required|string|max:255',
+            'title' => 'required|string|max:255', // Menambahkan validasi untuk title
+            'files.*' => 'required|file|mimes:pdf|max:10240',
+            'drawings' => 'required|array|min:1',
+            'drawings.*.number' => 'required|string|max:255',
+            'drawings.*.title' => 'required|string|max:255',
+            'rab_items' => 'nullable|array',
+            'rab_items.*.id' => 'required_with:rab_items|exists:rab_items,id',
+            'rab_items.*.completion_status' => 'required_with:rab_items|string|in:lengkap,belum_lengkap',
+        ]);
 
-		// Menggunakan DB Transaction agar semua proses berhasil atau gagal bersamaan
-		DB::beginTransaction();
-		try {
-			// 2. Buat "Surat Pengantar" (entri di tabel documents)
-			$document = Document::create([
-				'package_id' => $package->id,
-				'project_id' => $package->project_id, // Ambil dari relasi
-				'user_id' => Auth::id(),
-				'document_number' => $validated['document_number'],
-				'status' => 'pending',
-				'category' => 'shop_drawing',
-				'title' => 'Shop Drawing: ' . $validated['document_number'],
-				'name' => 'Shop Drawing: ' . $validated['document_number'],
-				'requires_approval' => true, // Shop drawing selalu butuh persetujuan
-			]);
+        DB::beginTransaction();
+        try {
+            $document = $package->documents()->create([
+                'user_id' => Auth::id(),
+                'document_number' => $validated['document_number'],
+                'title' => $validated['title'],
+                'category' => 'shop_drawing',
+                'status' => 'pending',
+                'requires_approval' => true,
+            ]);
 
-			// 3. Simpan setiap file yang diunggah
-			foreach ($request->file('files') as $file) {
-				$path = $file->store('documents', 'public');
-				$document->files()->create([
-					'file_path' => $path,
-					'original_filename' => $file->getClientOriginalName(),
-				]);
-			}
+            foreach ($validated['drawings'] as $drawingData) {
+                $document->drawingDetails()->create([
+                    'drawing_number' => $drawingData['number'],
+                    'drawing_title' => $drawingData['title'],
+                    'status' => 'pending',
+                ]);
+            }
 
-			// 4. Simpan SEMUA detail gambar yang diinput
-			foreach ($validated['drawings'] as $drawingData) {
-				$document->drawingDetails()->create([
-					'drawing_number' => $drawingData['number'],
-					'drawing_title' => $drawingData['title'],
-					'revision' => 0,
-					'status' => 'pending', // Status per gambar juga pending
-				]);
-			}
+            foreach ($request->file('files') as $file) {
+                $path = $file->store('documents', 'public');
+                $document->files()->create([
+                    'original_filename' => $file->getClientOriginalName(),
+                    'file_path' => $path,
+                ]);
+            }
 
-			// 5. Hubungkan item pekerjaan ke DOKUMEN UTAMA beserta status kelengkapannya
-			if (!empty($validated['rab_items'])) {
-				$rabSyncData = [];
-				foreach ($validated['rab_items'] as $rabId => $details) {
-					$rabSyncData[$rabId] = ['completion_status' => $details['completion_status']];
-				}
-				$document->rabItems()->sync($rabSyncData);
-			}
+            if (!empty($validated['rab_items'])) {
+                $rabSyncData = [];
+                foreach ($validated['rab_items'] as $rabItemData) {
+                    $rabSyncData[$rabItemData['id']] = ['completion_status' => $rabItemData['completion_status']];
+                }
+                $document->rabItems()->sync($rabSyncData);
+            }
 
-			// 6. Buat catatan riwayat pengajuan awal
-			$document->approvals()->create([
-				'user_id' => Auth::id(),
-				'status' => 'pending',
-				'notes' => 'Dokumen diajukan pertama kali oleh Kontraktor.'
-			]);
+            $document->approvals()->create(['user_id' => Auth::id(), 'status' => 'submitted', 'notes' => 'Dokumen diajukan.']);
 
-			DB::commit(); // Konfirmasi semua perubahan jika tidak ada error
+            // KIRIM NOTIFIKASI KE MK
+            $project = $package->project;
+            $recipients = $project->getMkUsers();
 
-			// 7. Arahkan kembali ke halaman utama dengan pesan sukses
-			return redirect()->route('documents.index', ['package' => $package->id])
-							->with('success', 'Shop Drawing berhasil diajukan dan sedang menunggu review.');
+            if ($recipients && !$recipients->isEmpty()) {
+                // Tambahkan pesan dinamis untuk notifikasi baru
+                $document->status = 'pending'; // Set status eksplisit untuk pesan notifikasi
+                $notification = new ShopDrawingStatusUpdated($document);
+                $notification->message = "Shop Drawing baru '{$document->title}' telah diajukan dan menunggu review.";
+                Notification::send($recipients, $notification);
+            }
 
-		} catch (\Exception $e) {
-			DB::rollBack(); // Batalkan semua jika ada error
-			// Tampilkan error untuk debugging
-			return back()->with('error', 'Terjadi kesalahan saat menyimpan data: ' . $e->getMessage())->withInput();
-		}
-	}
+            DB::commit();
+
+            return redirect()->route('documents.index', ['package' => $package->id])->with('success', 'Shop Drawing berhasil diajukan dan notifikasi telah dikirim ke MK.');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Gagal mengajukan shop drawing: ' . $e->getMessage());
+            return back()->with('error', 'Gagal mengajukan shop drawing: ' . $e->getMessage())->withInput();
+        }
+    }
 	
 	
 	
@@ -372,92 +373,98 @@ class DocumentController extends Controller
      * Menyimpan hasil review dari MK.
      */
     public function storeReview(Request $request, Package $package, Document $shop_drawing)
-    {
-        // Gunakan $shop_drawing agar cocok dengan route
-        $this->authorize('review', $shop_drawing);
+	{
+		$this->authorize('review', $shop_drawing);
 
-        $validated = $request->validate([
-            'drawings' => 'required|array',
-            'drawings.*.status' => 'required|string|in:approved,revision,rejected',
-            'drawings.*.notes' => 'nullable|string',
-            
-            'rab_items' => 'nullable|array',
-            'rab_items.*.completion_status' => 'required|string|in:lengkap,belum_lengkap',
-            
-            'overall_notes' => 'nullable|string',
-            'disposition' => 'required|string',
-        ]);
+		$validated = $request->validate([
+			'drawings' => 'required|array',
+			'drawings.*.status' => 'required|string|in:approved,revision,rejected',
+			'drawings.*.notes' => 'nullable|string',
+			'rab_items' => 'nullable|array',
+			'rab_items.*.completion_status' => 'required_with:rab_items|string|in:lengkap,belum_lengkap',
+			'overall_notes' => 'nullable|string',
+			'disposition' => 'required|string',
+		]);
 
-        DB::beginTransaction();
-        try {
-            // Update status dan catatan untuk setiap gambar (DrawingDetail)
-            foreach ($validated['drawings'] as $id => $data) {
-                $drawingDetail = \App\Models\DrawingDetail::find($id);
-                // Pastikan drawing detail ini milik dokumen yang benar
-                if ($drawingDetail && $drawingDetail->document_id == $shop_drawing->id) {
-                    $drawingDetail->update([
-                        'status' => $data['status'],
-                        'notes' => $data['notes'],
-                        'reviewed_by' => Auth::id(),
-                        'review_date' => now(),
-                    ]);
-                }
-            }
+		DB::beginTransaction();
+		try {
+			$user = Auth::user();
+			$disposition = $validated['disposition'];
+			$newStatus = $shop_drawing->status; // Status awal
 
-            // Update status kelengkapan item pekerjaan di tabel pivot
-            if (!empty($validated['rab_items'])) {
-                $rabSyncData = [];
-                foreach ($validated['rab_items'] as $rabId => $details) {
-                    $rabSyncData[$rabId] = ['completion_status' => $details['completion_status']];
-                }
-                $shop_drawing->rabItems()->syncWithoutDetaching($rabSyncData);
-            }
+			// Tentukan status dokumen baru berdasarkan disposisi
+			if ($disposition === 'to_owner') {
+				$newStatus = 'menunggu_persetujuan_owner';
+			} elseif ($disposition === 'owner_approved') {
+				$newStatus = 'approved';
+			} elseif ($disposition === 'owner_rejected') {
+				$newStatus = 'revision'; // Atau 'rejected', sesuaikan dengan alur Anda
+			}
+			
+			// Update status dokumen utama
+			$shop_drawing->status = $newStatus;
+			$shop_drawing->save();
 
-            // Buat catatan riwayat baru untuk proses review ini
-            $shop_drawing->approvals()->create([
-                'user_id' => Auth::id(),
-                'status' => $validated['disposition'],
-                'notes' => $validated['overall_notes'],
-            ]);
+			// Update status setiap detail gambar
+			foreach ($validated['drawings'] as $id => $data) {
+				DrawingDetail::where('id', $id)->update([
+					'status' => $data['status'],
+					'notes' => $data['notes'],
+				]);
+			}
+			
+			// Update status item RAB jika ada
+			if (isset($validated['rab_items'])) {
+				foreach ($validated['rab_items'] as $id => $data) {
+					$shop_drawing->rabItems()->updateExistingPivot($id, [
+						'completion_status' => $data['completion_status']
+					]);
+				}
+			}
+			
+			// Buat log di tabel riwayat (approvals)
+			$shop_drawing->approvals()->create([
+				'user_id' => $user->id,
+				'status' => $newStatus,
+				'notes' => $validated['overall_notes'] ?? 'Review ' . $user->name,
+			]);
 
-            // Hitung ulang dan update status keseluruhan dari surat pengantar (Document)
-            $shop_drawing->updateOverallStatus();
+			// ==========================================================
+			// == AWAL DARI LOGIKA PENGIRIMAN NOTIFIKASI (BAGIAN BARU) ==
+			// ==========================================================
+			
+			$recipients = null;
+			
+			// Skenario 1: Review MK selesai, teruskan ke Owner
+			if ($newStatus === 'menunggu_persetujuan_owner') {
+				$project = $package->project;
+				$recipients = $project->getOwnerUsers();
+			} 
+			// Skenario 2: Owner sudah setuju atau menolak, beritahu Kontraktor
+			else if (in_array($newStatus, ['approved', 'revision', 'rejected'])) {
+				$recipients = $shop_drawing->user; // Pengguna yang mengunggah dokumen
+			}
+			
+			// Kirim notifikasi jika ada penerima yang ditemukan
+			if ($recipients && !$recipients->isEmpty()) {
+				Notification::send($recipients, new ShopDrawingStatusUpdated($shop_drawing));
+			}
 
-            // =======================================================
-            // AWAL DARI BLOK LOGIKA DISPOSISI (BARU)
-            // =======================================================
-            // Setelah status per gambar dihitung, kita proses disposisinya.
-            // Hanya proses disposisi jika status keseluruhan adalah 'approved' oleh MK.
-            $disposition = $validated['disposition'];
+			// ========================================================
+			// == AKHIR DARI LOGIKA PENGIRIMAN NOTIFIKASI ==
+			// ========================================================
 
-            // Jika MK meneruskan ke Owner
-            if ($shop_drawing->status === 'approved' && $disposition === 'to_owner') {
-                $shop_drawing->status = 'menunggu_persetujuan_owner';
-                $shop_drawing->save();
-            }
+			DB::commit();
 
-            // Jika Owner membuat keputusan final
-            if ($disposition === 'owner_approved') {
-                $shop_drawing->status = 'approved'; // Status final: approved
-                $shop_drawing->save();
-            } elseif ($disposition === 'owner_rejected') {
-                $shop_drawing->status = 'rejected'; // Status final: rejected
-                $shop_drawing->save();
-            }
-            // =======================================================
-            // AKHIR DARI BLOK LOGIKA DISPOSISI
-            // =======================================================
+			return redirect()->route('documents.index', ['package' => $package->id])
+							 ->with('success', 'Review berhasil disimpan.');
 
-            DB::commit();
-
-            return redirect()->route('documents.index', ['package' => $package->id])
-                            ->with('success', 'Hasil review berhasil disimpan.');
-
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return back()->with('error', 'Gagal menyimpan review: ' . $e->getMessage())->withInput();
-        }
-    }
+		} catch (\Exception $e) {
+			DB::rollBack();
+			Log::error("Gagal menyimpan review: " . $e->getMessage());
+			return back()->with('error', 'Terjadi kesalahan saat menyimpan review.');
+		}
+	}
 	
 	public function destroy(Package $package, Document $document)
     {
@@ -511,4 +518,25 @@ class DocumentController extends Controller
 		return redirect()->route('documents.index', ['package' => $shop_drawing->package_id])
 						 ->with('success', 'Dokumen berhasil diperbarui.');
 	}
+	
+	// Helper functions (buildTree & flattenTreeForDropdown)
+    private function buildTree($items, $parentId = null) {
+        $branch = collect();
+        foreach ($items->where('parent_id', $parentId) as $item) {
+            $item->children = $this->buildTree($items, $item->id);
+            $branch->push($item);
+        }
+        return $branch;
+    }
+    private function flattenTreeForDropdown($items, $level = 0) {
+        $options = [];
+        foreach ($items as $item) {
+            $prefix = str_repeat('&nbsp;&nbsp;&nbsp;', $level);
+            $options[] = [ 'id' => $item->id, 'name' => $prefix . $item->item_number . ' ' . $item->item_name, 'disabled' => $item->disabled ];
+            if ($item->children->isNotEmpty()) {
+                $options = array_merge($options, $this->flattenTreeForDropdown($item->children, $level + 1));
+            }
+        }
+        return $options;
+    }
 }
