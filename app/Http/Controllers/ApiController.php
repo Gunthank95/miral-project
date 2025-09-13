@@ -33,10 +33,19 @@ class ApiController extends Controller
 
     public function getRabItemChildren(RabItem $rab_item)
     {
-        $allItems = RabItem::where('package_id', $rab_item->package_id)->get()->sortBy('id');
-        $tree = $this->buildTree($allItems, $rab_item->id);
-        $flatList = $this->flattenTreeForDropdown($tree);
-        return response()->json($flatList);
+        $children = RabItem::where('parent_id', $rab_item->id)
+            ->orderBy('item_number', 'asc')
+            ->get();
+
+        // Format data agar sesuai dengan yang diharapkan TomSelect (id, name)
+        $formattedChildren = $children->map(function ($item) {
+            return [
+                'id' => $item->id,
+                'name' => $item->item_number . ' ' . $item->item_name,
+            ];
+        });
+
+        return response()->json($formattedChildren);
     }
 
     public function checkDuplicateActivity(DailyReport $daily_report, RabItem $rab_item)

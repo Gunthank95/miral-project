@@ -26,7 +26,7 @@
 
             <h1 class="text-2xl font-bold text-gray-800">Formulir Pengajuan Shop Drawing</h1>
             
-            {{-- Bagian 1: Detail Dokumen (Sesuai Repo) --}}
+            {{-- Bagian 1: Detail Dokumen --}}
             <div class="space-y-4 border-b pb-6">
                 <h2 class="text-lg font-semibold text-gray-700">Informasi Dokumen</h2>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -46,7 +46,7 @@
                 </div>
             </div>
 
-            {{-- Bagian 2: Detail Gambar (Sesuai Repo) --}}
+            {{-- Bagian 2: Detail Gambar --}}
             <div class="space-y-4 border-b pb-6">
                 <h2 class="text-lg font-semibold text-gray-700">Detail Gambar</h2>
                 <template x-for="(drawing, index) in drawings" :key="index">
@@ -81,7 +81,7 @@
                     </div>
                     <div>
                         <label for="rab_items" class="block text-sm font-medium text-gray-700 mb-1">Item Pekerjaan</label>
-                        <select id="rab_items" multiple placeholder="Pilih item pekerjaan..."></select>
+                        <select id="rab_items" multiple disabled placeholder="Pilih item pekerjaan..."></select>
                     </div>
                 </div>
 
@@ -91,7 +91,7 @@
                 </div>
             </div>
 
-            <div class="flex justify-end pt-40">
+            <div class="flex justify-end pt-5">
                 <button type="submit" class="bg-indigo-600 text-white font-bold py-2 px-6 rounded-lg hover:bg-indigo-700">Ajukan Dokumen</button>
             </div>
         </form>
