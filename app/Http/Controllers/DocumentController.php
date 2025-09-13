@@ -77,19 +77,16 @@ class DocumentController extends Controller
     {
         $this->authorize('create', Document::class);
 
-        $allItems = RabItem::where('package_id', $package->id)->get()->sortBy('id');
-        $parentIds = $allItems->whereNotNull('parent_id')->pluck('parent_id')->unique();
+        // Ambil HANYA item RAB utama (yang tidak punya parent) untuk dropdown pertama.
+        $mainRabItems = RabItem::where('package_id', $package->id)
+            ->whereNull('parent_id')
+            ->orderBy('item_number', 'asc')
+            ->get();
 
-        $rabItems = $allItems->map(function ($item) use ($parentIds) {
-            $item->disabled = $parentIds->contains($item->id);
-            return $item;
-        });
-
-        $tree = $this->buildTree($rabItems);
-        $flatRabItems = $this->flattenTreeForDropdown($tree);
-
-        return view('documents.create_submission', compact('package', 'flatRabItems'));
+        // Kirim data tersebut ke view.
+        return view('documents.create_submission', compact('package', 'mainRabItems'));
     }
+
 	
 	/**
      * Menampilkan form untuk mengunggah revisi sebuah dokumen.
