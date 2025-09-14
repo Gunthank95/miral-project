@@ -33,21 +33,48 @@ class ApiController extends Controller
 
     public function getRabItemChildren(RabItem $rab_item)
     {
-        $children = RabItem::where('parent_id', $rab_item->id)
+        // Panggil fungsi rekursif baru kita untuk membangun daftar turunan
+        $flatList = $this->fetchAndFlattenDescendants($rab_item->id);
+
+        return response()->json($flatList);
+    }
+	
+	/**
+     * BARU: Fungsi rekursif untuk mengambil semua turunan dan memformatnya.
+     *
+     * @param int|null $parentId ID dari item induk untuk memulai.
+     * @param int $level Tingkat kedalaman untuk inden.
+     * @return array
+     */
+    private function fetchAndFlattenDescendants($parentId, $level = 0)
+    {
+        $result = [];
+
+        // Ambil semua anak dari parentId saat ini
+        $children = RabItem::where('parent_id', $parentId)
             ->orderBy('item_number', 'asc')
             ->get();
 
-        // Format data agar sesuai dengan yang diharapkan TomSelect (id, name)
-        $formattedChildren = $children->map(function ($item) {
-            return [
-                'id' => $item->id,
-                'name' => $item->item_number . ' ' . $item->item_name,
+        foreach ($children as $child) {
+            // Tambahkan inden berdasarkan level kedalaman
+            $prefix = str_repeat('&nbsp;&nbsp;&nbsp;&nbsp;', $level);
+            
+            // Tambahkan item saat ini ke dalam daftar
+            $result[] = [
+                'id' => $child->id,
+                'name' => $prefix . $child->item_number . ' ' . $child->item_name,
             ];
-        });
 
-        return response()->json($formattedChildren);
+            // Panggil fungsi ini lagi untuk mencari turunan dari item saat ini (cucu, dst.)
+            $descendants = $this->fetchAndFlattenDescendants($child->id, $level + 1);
+            
+            // Gabungkan hasilnya
+            $result = array_merge($result, $descendants);
+        }
+
+        return $result;
     }
-
+	
     public function checkDuplicateActivity(DailyReport $daily_report, RabItem $rab_item)
     {
         $isDuplicate = $daily_report->activities()
@@ -127,9 +154,7 @@ class ApiController extends Controller
     public function getReviewDetails(Document $document)
     {
         $this->authorize('review', $document);
-
         $document->load(['drawingDetails', 'rabItems', 'approvals.user']);
-
         return response()->json([
             'drawings' => $document->drawingDetails,
             'rab_items' => $document->rabItems,
@@ -149,7 +174,6 @@ class ApiController extends Controller
             $notification->markAsRead();
             return response()->json(['message' => 'Notification marked as read.']);
         }
-
         return response()->json(['message' => 'Unauthorized'], 403);
     }
 }

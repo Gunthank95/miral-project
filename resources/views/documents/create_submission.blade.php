@@ -26,7 +26,7 @@
 
             <h1 class="text-2xl font-bold text-gray-800">Formulir Pengajuan Shop Drawing</h1>
             
-            {{-- Bagian 1: Detail Dokumen --}}
+            {{-- Bagian 1 & 2 (Detail Dokumen & Gambar) --}}
             <div class="space-y-4 border-b pb-6">
                 <h2 class="text-lg font-semibold text-gray-700">Informasi Dokumen</h2>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -42,17 +42,13 @@
                 <div>
                     <label for="files" class="block text-sm font-medium text-gray-700">File Shop Drawing (PDF)</label>
                     <input type="file" name="files[]" id="files" multiple required class="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
-                    <p class="mt-1 text-xs text-gray-500">Anda dapat mengunggah lebih dari satu file PDF.</p>
                 </div>
             </div>
-
-            {{-- Bagian 2: Detail Gambar --}}
             <div class="space-y-4 border-b pb-6">
                 <h2 class="text-lg font-semibold text-gray-700">Detail Gambar</h2>
                 <template x-for="(drawing, index) in drawings" :key="index">
                     <div class="flex items-end space-x-4">
                         <div class="flex-grow">
-                            <label class="block text-sm font-medium text-gray-700">No. Gambar & Judul</label>
                             <div class="flex space-x-2">
                                 <input type="text" :name="`drawings[${index}][number]`" x-model="drawing.number" placeholder="No. Gambar" class="mt-1 block w-1/3 shadow-sm sm:text-sm border-gray-300 rounded-md" required>
                                 <input type="text" :name="`drawings[${index}][title]`" x-model="drawing.title" placeholder="Judul Gambar" class="mt-1 block w-2/3 shadow-sm sm:text-sm border-gray-300 rounded-md" required>
@@ -84,7 +80,6 @@
                         <select id="rab_items" multiple disabled placeholder="Pilih item pekerjaan..."></select>
                     </div>
                 </div>
-
                 <div id="rab-status-container" class="space-y-3 border p-4 rounded-md bg-gray-50 hidden">
                     <h3 class="text-md font-semibold text-gray-600">Status Kelengkapan Gambar</h3>
                     <div id="rab-status-list"></div>
@@ -114,11 +109,9 @@
         const rabStatusContainer = document.getElementById('rab-status-container');
         const rabStatusList = document.getElementById('rab-status-list');
 
+        // Inisialisasi dropdown anak
         const tomSelectChild = new TomSelect('#rab_items', {
-            plugins: ['remove_button'],
-            valueField: 'id',
-            labelField: 'name',
-            searchField: 'name',
+            plugins: ['remove_button'], valueField: 'id', labelField: 'name', searchField: 'name',
             onChange: function(values) {
                 rabStatusList.innerHTML = '';
                 if (values && values.length > 0) {
@@ -130,17 +123,8 @@
                         const statusRow = document.createElement('div');
                         statusRow.className = 'grid grid-cols-1 md:grid-cols-3 gap-4 items-center border-t pt-3 mt-3 first:mt-0 first:border-t-0';
                         statusRow.innerHTML = `
-                            <div class="md:col-span-2">
-                                <label class="block text-sm font-medium text-gray-800">${itemName}</label>
-                                <input type="hidden" name="rab_items[${itemId}][id]" value="${itemId}">
-                            </div>
-                            <div>
-                                <select name="rab_items[${itemId}][completion_status]" class="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md">
-                                    <option value="lengkap">Lengkap</option>
-                                    <option value="belum_lengkap" selected>Belum Lengkap</option>
-                                </select>
-                            </div>
-                        `;
+                            <div class="md:col-span-2"><label class="block text-sm font-medium text-gray-800">${itemName}</label><input type="hidden" name="rab_items[${itemId}][id]" value="${itemId}"></div>
+                            <div><select name="rab_items[${itemId}][completion_status]" class="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"><option value="lengkap">Lengkap</option><option value="belum_lengkap" selected>Belum Lengkap</option></select></div>`;
                         rabStatusList.appendChild(statusRow);
                     });
                 } else {
@@ -149,6 +133,7 @@
             }
         });
 
+        // Inisialisasi dropdown induk
         new TomSelect('#main_rab_item', {
             onChange: (value) => {
                 tomSelectChild.clear();
@@ -157,17 +142,27 @@
                     tomSelectChild.disable();
                     return;
                 }
-                tomSelectChild.load(function(callback) {
-                    tomSelectChild.enable();
-                    const apiUrl = `/api/rab-items/${value}/children`;
-                    fetch(apiUrl)
-                        .then(response => response.json())
-                        .then(data => {
-                            callback(data);
-                        }).catch(() => {
-                            callback();
-                        });
-                });
+
+                // ==========================================================
+                // ==== PERUBAHAN UTAMA - PENDEKATAN BARU YANG LEBIH KUAT ====
+                // ==========================================================
+                const apiUrl = `/api/rab-items/${value}/children`;
+                
+                // Aktifkan dan beri tahu pengguna bahwa data sedang dimuat
+                tomSelectChild.enable();
+                tomSelectChild.setTextboxValue('Memuat item pekerjaan...');
+
+                fetch(apiUrl)
+                    .then(response => response.json())
+                    .then(data => {
+                        tomSelectChild.clearOptions(); // Hapus opsi 'memuat...'
+                        tomSelectChild.addOptions(data); // Tambahkan opsi baru dari API
+                        tomSelectChild.setTextboxValue(''); // Kosongkan kotak input
+                    }).catch(error => {
+                        console.error("Gagal memuat item pekerjaan:", error);
+                        tomSelectChild.setTextboxValue('Gagal memuat data');
+                        tomSelectChild.disable();
+                    });
             }
         });
     });
