@@ -47,33 +47,34 @@ class ApiController extends Controller
      * @return array
      */
     private function fetchAndFlattenDescendants($parentId, $level = 0)
-    {
-        $result = [];
+	{
+		$result = [];
 
-        // Ambil semua anak dari parentId saat ini
-        $children = RabItem::where('parent_id', $parentId)
-            ->orderBy('item_number', 'asc')
-            ->get();
+		// Ambil semua anak dari parentId, diurutkan berdasarkan ID (Perbaikan ini tetap dipertahankan)
+		$children = RabItem::where('parent_id', $parentId)
+			->orderBy('id', 'asc')
+			->get();
 
-        foreach ($children as $child) {
-            // Tambahkan inden berdasarkan level kedalaman
-            $prefix = str_repeat('&nbsp;&nbsp;&nbsp;&nbsp;', $level);
-            
-            // Tambahkan item saat ini ke dalam daftar
-            $result[] = [
-                'id' => $child->id,
-                'name' => $prefix . $child->item_number . ' ' . $child->item_name,
-            ];
+		foreach ($children as $child) {
+			// KEMBALIKAN: Logika untuk membuat prefiks dengan &nbsp; berdasarkan level hirarki
+			$prefix = str_repeat('&nbsp;&nbsp;&nbsp;&nbsp;', $level);
 
-            // Panggil fungsi ini lagi untuk mencari turunan dari item saat ini (cucu, dst.)
-            $descendants = $this->fetchAndFlattenDescendants($child->id, $level + 1);
-            
-            // Gabungkan hasilnya
-            $result = array_merge($result, $descendants);
-        }
+			$result[] = [
+				'id' => $child->id,
+				// Gabungkan prefiks spasi dengan nama item
+				'name' => $prefix . $child->item_number . ' ' . $child->item_name,
+				'disabled' => is_null($child->volume),
+			];
 
-        return $result;
-    }
+			// Panggil fungsi ini lagi untuk mencari turunan dari item saat ini
+			$descendants = $this->fetchAndFlattenDescendants($child->id, $level + 1);
+			
+			// Gabungkan hasilnya
+			$result = array_merge($result, $descendants);
+		}
+
+		return $result;
+	}
 	
     public function checkDuplicateActivity(DailyReport $daily_report, RabItem $rab_item)
     {

@@ -111,7 +111,25 @@
 
         // Inisialisasi dropdown anak
         const tomSelectChild = new TomSelect('#rab_items', {
-            plugins: ['remove_button'], valueField: 'id', labelField: 'name', searchField: 'name',
+            dropdownParent: 'body',
+			plugins: ['remove_button'],
+            valueField: 'id',
+            labelField: 'name',
+            searchField: 'name',
+            
+            // ADOPSI CARA DARI DAILY LOGS: Tambahkan blok render ini
+            render: {
+                // Untuk daftar pilihan (dropdown), biarkan HTML &nbsp; dirender oleh browser
+                option: function(data, escape) {
+                    return `<div>${data.name}</div>`;
+                },
+                // Untuk item yang sudah dipilih, ganti &nbsp; menjadi spasi biasa
+                item: function(data, escape) {
+                    // Trik yang Anda temukan kita terapkan di sini
+                    return `<div>${data.name.replace(/&nbsp;/g, ' ')}</div>`;
+                }
+            },
+			
             onChange: function(values) {
                 rabStatusList.innerHTML = '';
                 if (values && values.length > 0) {
@@ -132,10 +150,13 @@
                 }
             }
         });
+		
+		tomSelectChild.disable(); // Tetap nonaktifkan di awal
 
         // Inisialisasi dropdown induk
         new TomSelect('#main_rab_item', {
-            onChange: (value) => {
+            dropdownParent: 'body',
+			onChange: (value) => {
                 tomSelectChild.clear();
                 tomSelectChild.clearOptions();
                 if (!value) {

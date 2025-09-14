@@ -80,7 +80,7 @@ class DocumentController extends Controller
         // Ambil HANYA item RAB utama (yang tidak punya parent) untuk dropdown pertama.
         $mainRabItems = RabItem::where('package_id', $package->id)
             ->whereNull('parent_id')
-            ->orderBy('item_number', 'asc')
+            ->orderBy('id', 'asc')
             ->get();
 
         // Kirim data tersebut ke view.
