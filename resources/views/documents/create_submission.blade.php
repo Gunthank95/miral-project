@@ -32,11 +32,11 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
                         <label for="document_number" class="block text-sm font-medium text-gray-700">No. Surat Pengantar</label>
-                        <input type="text" id="document_number" name="document_number" value="{{ old('document_number') }}" required class="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md">
+                        <input type="text" id="document_number" name="document_number" value="{{ old('document_number') }}" required class="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md px-3 py-2">
                     </div>
                     <div>
                         <label for="title" class="block text-sm font-medium text-gray-700">Judul Utama Pengajuan</label>
-                        <input type="text" id="title" name="title" value="{{ old('title') }}" required class="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md">
+                        <input type="text" id="title" name="title" value="{{ old('title') }}" required class="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md px-3 py-2">
                     </div>
                 </div>
                 <div>
@@ -50,8 +50,8 @@
                     <div class="flex items-end space-x-4">
                         <div class="flex-grow">
                             <div class="flex space-x-2">
-                                <input type="text" :name="`drawings[${index}][number]`" x-model="drawing.number" placeholder="No. Gambar" class="mt-1 block w-1/3 shadow-sm sm:text-sm border-gray-300 rounded-md" required>
-                                <input type="text" :name="`drawings[${index}][title]`" x-model="drawing.title" placeholder="Judul Gambar" class="mt-1 block w-2/3 shadow-sm sm:text-sm border-gray-300 rounded-md" required>
+                                <input type="text" :name="`drawings[${index}][number]`" x-model="drawing.number" placeholder="No. Gambar" class="mt-1 block w-1/3 shadow-sm sm:text-sm border-gray-300 rounded-md px-3 py-2" required>
+                                <input type="text" :name="`drawings[${index}][title]`" x-model="drawing.title" placeholder="Judul Gambar" class="mt-1 block w-2/3 shadow-sm sm:text-sm border-gray-300 rounded-md px-3 py-2" required>
                             </div>
                         </div>
                         <button type="button" @click="removeDrawing(index)" class="bg-red-100 text-red-600 p-2 rounded-full hover:bg-red-200 focus:outline-none" title="Hapus Gambar">
