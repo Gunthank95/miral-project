@@ -19,34 +19,36 @@ class DocumentController extends Controller
     // GANTI method index() di dalam DocumentController
 
 	public function index(Request $request, Package $package)
-	{
-		$categories = ['shop_drawing' => 'Shop Drawing'];
-		$activeCategory = $request->input('category', 'shop_drawing');
-		$user = Auth::user();
+    {
+        // Bagian ini dipertahankan dari kode lama Anda
+        $categories = ['shop_drawing' => 'Shop Drawing'];
+        $activeCategory = $request->input('category', 'shop_drawing');
+        
+        // ================================================================= //
+        // ==================== PERBAIKAN UTAMA DI SINI ==================== //
+        // ================================================================= //
 
-		// Ambil query dasar untuk dokumen
-		$query = \App\Models\Document::where('package_id', $package->id)
-			->with(['rabItems', 'user', 'approvals.user', 'files', 'drawingDetails']);
+        // 1. Otorisasi disesuaikan untuk menggunakan $package->project
+        $this->authorize('viewAny', [Document::class, $package->project]);
 
-		// --- LOGIKA FILTER BARU UNTUK OWNER ---
-		// Cek apakah user adalah Owner dan BUKAN MK di proyek ini
-		$isPureOwner = $user->isOwnerInProject($package->project_id) && !$user->isMKInProject($package->project_id);
+        // 2. Query dasar disesuaikan dengan kode lama Anda yang menggunakan 'package_id'
+        $query = \App\Models\Document::where('package_id', $package->id)
+            ->with(['rabItems', 'user', 'approvals.user', 'files', 'drawingDetails']);
 
-		if ($isPureOwner) {
-			// Jika dia "hanya" Owner, tampilkan dokumen yang menunggunya saja
-			$query->where('status', 'menunggu_persetujuan_owner');
-		}
-		// --- AKHIR LOGIKA FILTER ---
+        // 3. Logika filter khusus untuk Owner DIHAPUS sesuai permintaan Anda
+        //    agar Owner bisa melihat semua dokumen untuk keperluan laporan dan riwayat.
+        //    Sekarang semua peran akan melihat daftar dokumen yang sama.
+        
+        // 4. Pengambilan data dan pengelompokan dipertahankan
+        $allDocuments = $query->latest()->get();
 
-		// Lanjutkan query seperti biasa
-		$allDocuments = $query->latest()->get();
-
-		$documentsByCategory = $allDocuments->groupBy(function ($item, $key) {
-			return str_replace(' ', '_', strtolower($item->category));
-		});
-		
-		return view('documents.index', compact('package', 'categories', 'activeCategory', 'documentsByCategory'));
-	}
+        $documentsByCategory = $allDocuments->groupBy(function ($item, $key) {
+            return str_replace(' ', '_', strtolower($item->category));
+        });
+        
+        // 5. Variabel yang dikirim ke view disesuaikan kembali dengan kode lama Anda
+        return view('documents.index', compact('package', 'categories', 'activeCategory', 'documentsByCategory'));
+    }
 	
     /**
      * Menampilkan form untuk mengunggah dokumen baru.
@@ -463,16 +465,36 @@ class DocumentController extends Controller
 		}
 	}
 	
-	public function destroy(Package $package, Document $document)
-    {
-        // Hapus file dari penyimpanan
-        \Illuminate\Support\Facades\Storage::disk('public')->delete($document->file_path);
-        
-        // Hapus catatan dari database
-        $document->delete();
+	public function destroy(Package $package, Document $shop_drawing)
+	{
+		// 1. Otorisasi: Variabel $document diubah menjadi $shop_drawing
+		$this->authorize('delete', $shop_drawing);
 
-        return back()->with('success', 'Dokumen berhasil dihapus.');
-    }
+		// 2. Gunakan Transaksi Database untuk keamanan
+		DB::beginTransaction();
+		try {
+			// 3. Hapus SEMUA file fisik dari storage
+			if ($shop_drawing->files->isNotEmpty()) {
+				foreach ($shop_drawing->files as $file) {
+					Storage::disk('public')->delete($file->file_path);
+				}
+			}
+
+			// 4. Hapus record dokumen dari database
+			$shop_drawing->delete();
+
+			DB::commit();
+			
+			return redirect()->route('documents.index', $package)
+							 ->with('success', 'Dokumen pengajuan berhasil dihapus.');
+
+		} catch (\Exception $e) {
+			DB::rollBack();
+			Log::error('Gagal menghapus dokumen: ' . $e->getMessage());
+			return redirect()->route('documents.index', $package)
+							 ->with('error', 'Gagal menghapus dokumen.');
+		}
+	}
 	
 	/**
      * TAMBAHKAN: Fungsi untuk menampilkan halaman edit dokumen.
