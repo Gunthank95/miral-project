@@ -63,6 +63,7 @@
                                             'approved' => ['text' => 'Disetujui', 'color' => 'green'],
                                             'rejected' => ['text' => 'Ditolak', 'color' => 'red'],
 											'menunggu_persetujuan_owner' => ['text' => 'Menunggu Persetujuan Owner', 'color' => 'purple'],
+											'owner_rejected' => ['text' => 'Ditolak Owner', 'color' => 'red'],
                                         ];
                                         $config = $statusConfig[strtolower($document->status)] ?? ['text' => ucfirst($document->status), 'color' => 'gray'];
                                     @endphp
@@ -78,12 +79,30 @@
 												<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2-2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clip-rule="evenodd" /></svg>
 											</button>
 										@endif
-
-										{{-- Tombol Review --}}
+										
+										{{-- Tombol "Review" HANYA muncul jika @can('review') terpenuhi --}}
 										@can('review', $document)
-											<button @click="openReviewModal('{{ route('documents.storeReview', ['package' => $package->id, 'shop_drawing' => $document->id]) }}', '{{ $document->document_number }}', {{ $document->id }})"
-													class="text-indigo-600 hover:text-indigo-900 font-bold text-sm">
+											@php
+												// Membuat URL API yang benar
+												$reviewApiUrl = route('documents.reviewDetails', ['package' => $package->id, 'shop_drawing' => $document->id]);
+												$reviewActionUrl = route('documents.storeReview', ['package' => $package->id, 'shop_drawing' => $document->id]);
+											@endphp
+											<button @click="openReviewModal('{{ $reviewActionUrl }}', '{{ $reviewApiUrl }}', '{{ $document->document_number }}')"
+													class="px-3 py-1 text-sm bg-indigo-600 text-white rounded-md hover:bg-indigo-700 font-bold">
 												Review
+											</button>
+										@endcan
+
+										{{-- Tombol "Edit Review" HANYA muncul jika @can('editReview') terpenuhi --}}
+										@can('editReview', $document)
+											@php
+												// Membuat URL API yang benar
+												$editApiUrl = route('documents.reviewDetails', ['package' => $package->id, 'shop_drawing' => $document->id]);
+												$editActionUrl = route('documents.storeReview', ['package' => $package->id, 'shop_drawing' => $document->id]);
+											@endphp
+											<button @click="openReviewModal('{{ $editActionUrl }}', '{{ $editApiUrl }}', '{{ $document->document_number }}')"
+													class="px-3 py-1 text-sm bg-gray-600 text-white rounded-md hover:bg-gray-700 font-bold">
+												Edit Review
 											</button>
 										@endcan
 										
@@ -116,6 +135,7 @@
 											</form>
 										@endcan
 									</div>
+									<span class="text-red-500 text-xs italic">Status DB: {{ $document->status }}</span>
 								</td>
                             </tr>
                             {{-- Baris Detail --}}
@@ -163,31 +183,29 @@
                 this.documentFiles = files;
                 this.fileModalOpen = true;
             },
-            openReviewModal(actionUrl, title, docId) {
-                this.reviewModal.open = true;
-                this.reviewModal.loading = true;
-                this.reviewModal.actionUrl = actionUrl;
-                this.reviewModal.documentTitle = title;
-                this.reviewModal.documentId = docId;
-                
-                const apiUrl = `/api/documents/${docId}/review-details`;
-                
-                fetch(apiUrl)
-                .then(response => {
-                    if (!response.ok) { throw new Error('Gagal mengambil data dari server.'); }
-                    return response.json();
-                })
-                .then(data => {
-                    this.reviewModal.details = data; 
-                    this.reviewModal.loading = false;
-                })
-                .catch(error => {
-                    console.error('Error saat fetch API:', error);
-                    this.reviewModal.loading = false;
-                    alert('Gagal memuat detail dokumen. Silakan coba lagi.');
-                    this.closeReviewModal();
-                });
-            },
+            openReviewModal(actionUrl, apiUrl, title) {
+				this.reviewModal.open = true;
+				this.reviewModal.loading = true;
+				this.reviewModal.actionUrl = actionUrl;
+				this.reviewModal.documentTitle = title;
+				
+				// Sekarang kita menggunakan apiUrl yang benar dari tombol
+				fetch(apiUrl)
+				.then(response => {
+					if (!response.ok) { throw new Error('Gagal mengambil data dari server.'); }
+					return response.json();
+				})
+				.then(data => {
+					this.reviewModal.details = data; 
+					this.reviewModal.loading = false;
+				})
+				.catch(error => {
+					console.error('Error saat fetch API:', error);
+					this.reviewModal.loading = false;
+					alert('Gagal memuat detail dokumen. Silakan coba lagi.');
+					this.closeReviewModal();
+				});
+			},
             closeReviewModal() {
                 this.reviewModal.open = false;
             }

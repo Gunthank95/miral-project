@@ -2,14 +2,19 @@
 
 namespace App\Http\Controllers;
 
+// Models
 use App\Models\DailyLog;
 use App\Models\RabItem;
 use App\Models\DailyReport;
 use App\Models\Package;
 use App\Models\Document;
+use App\Models\DocumentApproval;
+
+// Laravel Facades
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Notifications\DatabaseNotification;
 
 class ApiController extends Controller
@@ -152,17 +157,32 @@ class ApiController extends Controller
 	/**
      * BARU: Mengambil detail lengkap dokumen untuk ditampilkan di modal review.
      */
-    public function getReviewDetails(Document $document)
-    {
-        $this->authorize('review', $document);
-        $document->load(['drawingDetails', 'rabItems', 'approvals.user']);
-        return response()->json([
-            'drawings' => $document->drawingDetails,
-            'rab_items' => $document->rabItems,
-            'history' => $document->approvals,
-            'document_status' => $document->status,
-        ]);
-    }
+    public function getReviewDetails(Package $package, Document $shop_drawing)
+	{
+		// Otorisasi: Pastikan pengguna berhak melihat detail review ini
+		// Pengguna boleh melihat jika ia boleh me-review ATAU meng-edit review.
+		if (Gate::denies('review', $shop_drawing) && Gate::denies('editReview', $shop_drawing)) {
+			abort(403, 'Aksi tidak diizinkan.');
+		}
+
+		$shop_drawing->load(['drawingDetails', 'rabItems', 'approvals.user.projectRoles' => function ($query) {
+			$query->orderBy('created_at', 'asc');
+		}]);
+
+		// Eager load data review terakhir jika ada
+		$lastReview = DocumentApproval::where('document_id', $shop_drawing->id)
+			->where('user_id', auth()->id())
+			->latest()
+			->first();
+
+		return response()->json([
+			'drawings' => $shop_drawing->drawingDetails,
+			'rab_items' => $shop_drawing->rabItems,
+			'history' => $shop_drawing->approvals,
+			'document_status' => $shop_drawing->status,
+			'last_review' => $lastReview,
+		]);
+	}
 
     public function getUnreadNotifications()
     {

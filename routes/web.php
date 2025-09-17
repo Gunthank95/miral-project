@@ -218,7 +218,8 @@ Route::middleware('auth')->prefix('api')->group(function () {
     Route::get('/rab-item/{rab_item}/progress', [ApiController::class, 'getRabProgress'])->name('api.rab.progress');
     Route::get('/rab-items/{rab_item}/children', [ApiController::class, 'getRabItemChildren'])->name('api.rab.children');
     Route::get('/daily-reports/{daily_report}/check-activity/{rab_item}', [ApiController::class, 'checkDuplicateActivity'])->name('api.activity.check_duplicate');
-    Route::get('/api/rab-item/{rab_item}/last-activity/{package}', [ApiController::class, 'getLastActivityData'])->name('api.rab.last_activity');
+    Route::get('/rab-item/{rab_item}/last-activity/{package}', [ApiController::class, 'getLastActivityData'])->name('api.rab.last_activity');
+	Route::get('/package/{package}/shop-drawing/{shop_drawing}/review-details', [ApiController::class, 'getReviewDetails'])->name('documents.reviewDetails');
 });
 
 // !!! PERHATIAN: Rute ini hanya untuk sementara !!!

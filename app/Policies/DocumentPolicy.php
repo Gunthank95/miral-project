@@ -20,7 +20,7 @@ class DocumentPolicy
 
     public function viewAny(User $user): bool
     {
-        return true; 
+        return true;
     }
 
     public function view(User $user, Document $document): bool
@@ -30,13 +30,13 @@ class DocumentPolicy
 
     public function create(User $user): bool
     {
-        $activeProjectId = session('active_project_id'); 
+        $activeProjectId = session('active_project_id');
         if (!$activeProjectId) {
             return false;
         }
         return $user->isContractorInProject($activeProjectId);
     }
-    
+
     /**
      * PERBAIKAN FINAL: Aturan review yang lebih ketat.
      */
@@ -49,6 +49,19 @@ class DocumentPolicy
 
         return $isMKReviewer || $isOwnerReviewer;
     }
+	
+	public function editReview(User $user, Document $document): bool
+	{
+		$projectId = $document->package->project_id;
+
+		// MK bisa edit review-nya jika statusnya sudah dikirim ke owner
+		$canMKEdit = $user->isMKInProject($projectId) && $document->status === 'menunggu_persetujuan_owner';
+
+		// Owner bisa edit keputusannya jika statusnya sudah final
+		$canOwnerEdit = $user->isOwnerInProject($projectId) && in_array($document->status, ['approved', 'owner_rejected']);
+
+		return $canMKEdit || $canOwnerEdit;
+	}
 
     public function update(User $user, Document $document): bool
     {
@@ -59,14 +72,16 @@ class DocumentPolicy
     {
         return $user->id === $document->user_id && in_array($document->status, ['pending', 'revision']);
     }
-	
+    
     public function resubmit(User $user, Document $document): bool
-    {
-        $projectId = $document->package->project_id;
-        $isContractor = $user->isContractorInProject($projectId);
-        $isSubmitter = ($document->user_id === $user->id);
-        $isRevisionStatus = in_array($document->status, ['revision', 'rejected']);
+	{
+		$projectId = $document->package->project_id;
+		$isContractor = $user->isContractorInProject($projectId);
+		$isSubmitter = ($document->user_id === $user->id);
+		
+		// PERBAIKAN DI SINI: Tambahkan 'owner_rejected'
+		$isRevisionStatus = in_array($document->status, ['revision', 'owner_rejected']);
 
-        return $isContractor && $isSubmitter && $isRevisionStatus;
-    }
+		return $isContractor && $isSubmitter && $isRevisionStatus;
+	}
 }

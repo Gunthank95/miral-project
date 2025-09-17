@@ -89,7 +89,7 @@ class ProjectRegistrationController extends Controller
 			// 2. Ambil level 'Project Manager' dari config
             $roleKey = 'project_manager'; // Default sebagai Project Manager untuk pendaftar pertama
             $roleLevel = config('roles.levels.' . $roleKey . '.level', 60); // 60 adalah fallback
-			$roleLevel = config('roles.levels.project_manager.level');	
+			$roleLevel = config('roles.definitions.project_manager.level');	
 
 			// 3. Buat entri di user_project_roles dengan role_level
 			UserProjectRole::create([

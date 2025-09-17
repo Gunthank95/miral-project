@@ -19,7 +19,7 @@ class AdminProjectRegisterController extends Controller
     public function showRegistrationForm()
 	{
 		// Ambil daftar level jabatan dari file config
-		$roles = config('roles.levels');
+		$roles = config('roles.definitions');
 		return view('auth.register', compact('roles')); // Kirim ke view
 	}
 

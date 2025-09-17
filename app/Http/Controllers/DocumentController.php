@@ -2,11 +2,13 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\User;
 use App\Models\Package;
 use App\Models\Document;
 use App\Models\RabItem; // <-- KESALAHAN UTAMA DI SINI, BARIS INI HILANG
 use App\Models\DrawingDetail;
 use App\Models\Project;
+use App\Models\DocumentApproval;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -373,95 +375,89 @@ class DocumentController extends Controller
      */
     public function storeReview(Request $request, Package $package, Document $shop_drawing)
 	{
-		$this->authorize('review', $shop_drawing);
+		Log::info('--- Memulai proses storeReview ---'); // Log #1: Memastikan fungsi dipanggil
 
+		// Otorisasi: Izinkan jika pengguna bisa 'review' (untuk kasus baru) ATAU 'editReview' (untuk kasus update)
+		if ($request->user()->cannot('review', $shop_drawing) && $request->user()->cannot('editReview', $shop_drawing)) {
+			abort(403);
+		}
+		
 		$validated = $request->validate([
-			'drawings' => 'required|array',
-			'drawings.*.status' => 'required|string|in:approved,revision,rejected',
-			'drawings.*.notes' => 'nullable|string',
-			'rab_items' => 'nullable|array',
-			'rab_items.*.completion_status' => 'required_with:rab_items|string|in:lengkap,belum_lengkap',
-			'overall_notes' => 'nullable|string',
-			'disposition' => 'required|string',
+			'drawings' => 'sometimes|array',
+			'drawings.*.status' => 'required_with:drawings|in:approved,revision,rejected',
+			'drawings.*.notes' => 'nullable|string|max:255',
+			'rab_items' => 'sometimes|array',
+			'rab_items.*.completion_status' => 'required_with:rab_items|in:lengkap,belum_lengkap',
+			'overall_notes' => 'nullable|string|max:1000',
+			'disposition' => 'required|string|in:to_owner,owner_approved,owner_rejected',
 		]);
+
+		$disposition = $validated['disposition'];
+		Log::info('Disposisi yang diterima: ' . $disposition); // Log #2: Melihat nilai disposisi
 
 		DB::beginTransaction();
 		try {
 			$user = Auth::user();
-			$disposition = $validated['disposition'];
-			$newStatus = $shop_drawing->status; // Status awal
 
-			// Tentukan status dokumen baru berdasarkan disposisi
+			// ALUR KHUSUS UNTUK REVIEW OLEH MK
 			if ($disposition === 'to_owner') {
-				$newStatus = 'menunggu_persetujuan_owner';
-			} elseif ($disposition === 'owner_approved') {
-				$newStatus = 'approved';
-			} elseif ($disposition === 'owner_rejected') {
-				$newStatus = 'revision'; // Atau 'rejected', sesuaikan dengan alur Anda
-			}
-			
-			// Update status dokumen utama
-			$shop_drawing->status = $newStatus;
-			$shop_drawing->save();
-
-			// Update status setiap detail gambar
-			foreach ($validated['drawings'] as $id => $data) {
-				DrawingDetail::where('id', $id)->update([
-					'status' => $data['status'],
-					'notes' => $data['notes'],
-				]);
-			}
-			
-			// Update status item RAB jika ada
-			if (isset($validated['rab_items'])) {
-				foreach ($validated['rab_items'] as $id => $data) {
-					$shop_drawing->rabItems()->updateExistingPivot($id, [
-						'completion_status' => $data['completion_status']
-					]);
+				Log::info('Masuk ke blok logika MK.');
+				// ... (logika MK tetap sama) ...
+				if (isset($validated['drawings'])) {
+					foreach ($validated['drawings'] as $id => $data) {
+						DrawingDetail::where('id', $id)->update([
+							'status' => $data['status'],
+							'notes' => $data['notes'],
+						]);
+					}
 				}
-			}
-			
-			// Buat log di tabel riwayat (approvals)
-			$shop_drawing->approvals()->create([
-				'user_id' => $user->id,
-				'status' => $newStatus,
-				'notes' => $validated['overall_notes'] ?? 'Review ' . $user->name,
-			]);
+				$needsRevision = collect($validated['drawings'] ?? [])->contains('status', 'revision');
+				$newStatus = $needsRevision ? 'revision' : 'menunggu_persetujuan_owner';
+				$shop_drawing->update(['status' => $newStatus]);
+				DocumentApproval::create([
+					'document_id' => $shop_drawing->id, 'user_id' => $user->id,
+					'status' => $newStatus, 'notes' => $validated['overall_notes'],
+				]);
+				if ($newStatus === 'menunggu_persetujuan_owner') {
+					$this->notifyUsers($package->project, $shop_drawing, ['owner']);
+				} else {
+					$this->notifyUsers($package->project, $shop_drawing, ['contractor']);
+				}
 
-			// ==========================================================
-			// == AWAL DARI LOGIKA PENGIRIMAN NOTIFIKASI (BAGIAN BARU) ==
-			// ==========================================================
-			
-			$recipients = null;
-			
-			// Skenario 1: Review MK selesai, teruskan ke Owner
-			if ($newStatus === 'menunggu_persetujuan_owner') {
-				$project = $package->project;
-				$recipients = $project->getOwnerUsers();
-			} 
-			// Skenario 2: Owner sudah setuju atau menolak, beritahu Kontraktor
-			else if (in_array($newStatus, ['approved', 'revision', 'rejected'])) {
-				$recipients = $shop_drawing->user; // Pengguna yang mengunggah dokumen
-			}
-			
-			// Kirim notifikasi jika ada penerima yang ditemukan
-			if ($recipients && !$recipients->isEmpty()) {
-				Notification::send($recipients, new ShopDrawingStatusUpdated($shop_drawing));
-			}
+			// ALUR KHUSUS UNTUK KEPUTUSAN FINAL OLEH OWNER
+			} elseif (in_array($disposition, ['owner_approved', 'owner_rejected'])) {
 
-			// ========================================================
-			// == AKHIR DARI LOGIKA PENGIRIMAN NOTIFIKASI ==
-			// ========================================================
+				$finalStatus = $shop_drawing->status; // Default ke status saat ini
+
+				// PERBAIKAN UTAMA: Cek peran pengguna yang melakukan aksi
+				if ($user->isOwnerInProject($package->project_id)) {
+					// Jika yang mengirim adalah OWNER, tentukan status final
+					$finalStatus = ($disposition === 'owner_approved') ? 'approved' : 'owner_rejected';
+				} elseif ($user->isMKInProject($package->project_id)) {
+					// Jika yang mengirim adalah MK (sedang edit review), maka "tolak" berarti "revisi"
+					$finalStatus = 'revision';
+				}
+
+				$shop_drawing->update(['status' => $finalStatus]);
+
+				DocumentApproval::create([
+					'document_id' => $shop_drawing->id,
+					'user_id' => $user->id,
+					'status' => $disposition,
+					'notes' => $validated['overall_notes'],
+				]);
+
+				$this->notifyUsers($package->project, $shop_drawing, ['contractor']);
+			}
 
 			DB::commit();
-
-			return redirect()->route('documents.index', ['package' => $package->id])
-							 ->with('success', 'Review berhasil disimpan.');
+			Log::info('--- Proses storeReview Selesai & Commit DB ---');
+			return redirect()->route('documents.index', $package)->with('success', 'Review berhasil disimpan.');
 
 		} catch (\Exception $e) {
 			DB::rollBack();
-			Log::error("Gagal menyimpan review: " . $e->getMessage());
-			return back()->with('error', 'Terjadi kesalahan saat menyimpan review.');
+			Log::error('Error saat menyimpan review: ' . $e->getMessage());
+			return redirect()->back()->with('error', 'Terjadi kesalahan. Gagal menyimpan review.');
 		}
 	}
 	
@@ -557,5 +553,60 @@ class DocumentController extends Controller
             }
         }
         return $options;
+    }
+	
+	/**
+     * Helper function to send notifications to relevant users.
+     *
+     * @param \App\Models\Project $project
+     * @param \App\Models\Document $document
+     * @param array $rolesToNotify
+     * @return void
+     */
+    private function notifyUsers(Project $project, Document $document, array $rolesToNotify)
+    {
+        // Jika notifikasi untuk kontraktor
+        if (in_array('contractor', $rolesToNotify)) {
+            $contractor = $document->user; // Ambil user yang membuat dokumen
+            if ($contractor) {
+                Notification::send($contractor, new ShopDrawingStatusUpdated($document, $project));
+            }
+            // Hapus 'contractor' dari array agar tidak diproses lagi di bawah
+            $rolesToNotify = array_diff($rolesToNotify, ['contractor']);
+        }
+
+        if (empty($rolesToNotify)) {
+            return; // Keluar jika tidak ada peran lain yang perlu dinotifikasi
+        }
+
+        $levels = [];
+        if (in_array('mk', $rolesToNotify)) {
+			$mk_levels = config('roles.mk');
+			if (is_array($mk_levels)) {
+				$levels = array_merge($levels, $mk_levels);
+			}
+		}
+
+		// Cek dulu apakah konfigurasi 'owner' ada sebelum digabungkan
+		if (in_array('owner', $rolesToNotify)) {
+			$owner_levels = config('roles.owner');
+			if (is_array($owner_levels)) {
+				$levels = array_merge($levels, $owner_levels);
+			}
+		}
+        
+        if (empty($levels)) {
+            return;
+        }
+
+        // Cari semua user dengan level peran yang sesuai di proyek ini
+        $usersToNotify = User::whereHas('projectRoles', function ($query) use ($project, $levels) {
+            $query->where('project_id', $project->id)
+                  ->whereIn('role_level', $levels);
+        })->get();
+
+        if ($usersToNotify->isNotEmpty()) {
+            Notification::send($usersToNotify, new ShopDrawingStatusUpdated($document, $project));
+        }
     }
 }
