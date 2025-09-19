@@ -135,7 +135,6 @@
 											</form>
 										@endcan
 									</div>
-									<span class="text-red-500 text-xs italic">Status DB: {{ $document->status }}</span>
 								</td>
                             </tr>
                             {{-- Baris Detail --}}

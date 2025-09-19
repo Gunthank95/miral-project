@@ -181,6 +181,7 @@ class ApiController extends Controller
 			'history' => $shop_drawing->approvals,
 			'document_status' => $shop_drawing->status,
 			'last_review' => $lastReview,
+			'current_user_level' => auth()->user()->getLevelInProject($package->project_id),
 		]);
 	}
 

@@ -55,4 +55,13 @@ class Document extends Model
     {
         return $this->hasMany(Document::class, 'parent_document_id', 'id');
     }
+	
+	/**
+	 * Mendefinisikan relasi ke model DocumentInternalReview.
+	 * Satu dokumen bisa memiliki banyak review internal.
+	 */
+	public function internalReviews()
+	{
+		return $this->hasMany(DocumentInternalReview::class);
+	}
 }

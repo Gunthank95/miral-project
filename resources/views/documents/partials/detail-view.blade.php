@@ -77,6 +77,38 @@
 
 	{{-- Kolom Kanan: Riwayat Persetujuan (PERUBAHAN DI SINI) --}}
 	<div>
+		{{-- ========================================================== --}}
+		{{-- ============ TAMBAHKAN PANEL BARU DI SINI ================ --}}
+		{{-- ========================================================== --}}
+		<div class="mb-4">
+			<h4 class="font-semibold text-sm text-gray-700 mb-2">Progres Review Internal MK</h4>
+			<div class="border rounded-md bg-white p-3 space-y-3 text-xs">
+				@if($document->status === 'pending')
+					@forelse($mkTeamMembers as $member)
+						@php
+							// Cari apakah member ini sudah mereview dokumen saat ini
+							$review = $document->internalReviews->firstWhere('user_id', $member->id);
+						@endphp
+						<div class="flex items-center justify-between">
+							<span class="text-gray-600">{{ $member->name }}</span>
+							@if($review)
+								@if($review->status == 'revision_needed')
+									<span class="font-semibold text-yellow-600">⚠️ Butuh Revisi</span>
+								@else
+									<span class="font-semibold text-green-600">✅ Direview</span>
+								@endif
+							@else
+								<span class="text-gray-400">Menunggu Review</span>
+							@endif
+						</div>
+					@empty
+						<p class="text-gray-500 text-center">Tidak ada anggota tim MK di proyek ini.</p>
+					@endforelse
+				@else
+					<p class="text-gray-500 text-center text-xs">Proses review internal MK telah selesai.</p>
+				@endif
+			</div>
+		</div>
 		<h4 class="font-semibold text-sm text-gray-700 mb-2">Riwayat Persetujuan</h4>
 		<div class="border rounded-md">
 			<table class="min-w-full text-sm bg-white">

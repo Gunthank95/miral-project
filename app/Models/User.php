@@ -185,5 +185,14 @@ class User extends Authenticatable
             ->where('company_id', $this->company_id)
             ->where('role_in_project', 'like', 'Owner%')
             ->exists();
-    }
+    }/**
+	 * Mendefinisikan relasi ke model DocumentInternalReview.
+	 * Satu pengguna bisa melakukan banyak review internal.
+	 */
+	public function internalReviews()
+	{
+		return $this->hasMany(DocumentInternalReview::class);
+	}
+	
+	
 }

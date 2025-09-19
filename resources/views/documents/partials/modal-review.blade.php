@@ -63,36 +63,27 @@
                     </div>
                     
                     {{-- 3. Keputusan & Disposisi Akhir --}}
-                    <div class="bg-white p-4 rounded-md border">
-                        <h3 class="font-semibold text-gray-800 mb-2">3. Keputusan Akhir & Disposisi</h3>
-                        <div class="space-y-4">
-                            <div>
-                                <label for="overall_notes" class="block text-sm font-medium text-gray-700">Catatan Keseluruhan</label>
-                                <textarea id="overall_notes" name="overall_notes" rows="3" class="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"></textarea>
-                            </div>
-                            <div>
-								<label for="disposition" class="block text-sm font-medium text-gray-700">Keputusan / Disposisi</label>
-								<select id="disposition" name="disposition" class="mt-1 block w-full py-2 px-3 border border-gray-300 rounded-md" required>
-									<option value="">-- Pilih Keputusan --</option>
-									
-                                    {{-- Opsi untuk MK --}}
-                                    <template x-if="reviewModal.details.document_status === 'pending'">
-                                        <optgroup label="Opsi MK">
-                                            <option value="to_owner">Teruskan ke Owner</option>
-                                        </optgroup>
-                                    </template>
-
-                                    {{-- Opsi untuk Owner --}}
-                                    <template x-if="reviewModal.details.document_status === 'menunggu_persetujuan_owner'">
-                                        <optgroup label="Opsi Owner">
-                                            <option value="owner_approved">Final: Disetujui Owner</option>
-                                            <option value="owner_rejected">Final: Ditolak / Revisi</option>
-                                        </optgroup>
-                                    </template>
-								</select>                            
-                            </div>
-                        </div>
-                    </div>
+					{{-- BUNGKUS DENGAN TEMPLATE X-IF INI --}}
+					<template x-if="reviewModal.details.current_user_level == 60">
+						<div class="bg-white p-4 rounded-md border">
+							<h3 class="font-semibold text-gray-800 mb-2">3. Keputusan Akhir & Disposisi (PM)</h3>
+							<div class="space-y-4">
+								<div>
+									<label for="overall_notes_pm" class="block text-sm font-medium text-gray-700">Catatan Keseluruhan</label>
+									<textarea x-model="reviewModal.form.overall_notes" id="overall_notes_pm" name="overall_notes" rows="3" class="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"></textarea>
+								</div>
+								<div>
+									<label for="disposition" class="block text-sm font-medium text-gray-700">Disposisi Final</label>
+									{{-- SEDERHANAKAN PILIHANNYA --}}
+									<select x-model="reviewModal.form.disposition" id="disposition" name="disposition" class="mt-1 block w-full py-2 px-3 border border-gray-300 rounded-md" required>
+										<option value="">-- Pilih Keputusan --</option>
+										<option value="to_owner">Teruskan ke Owner</option>
+										<option value="to_revision">Kembalikan ke Kontraktor (Revisi)</option>
+									</select>                            
+								</div>
+							</div>
+						</div>
+					</template>
 
                     {{-- Footer Tombol Aksi Form --}}
                     <div class="mt-6 flex justify-end space-x-3 pt-4 border-t">
