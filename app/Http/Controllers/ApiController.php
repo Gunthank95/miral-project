@@ -182,6 +182,9 @@ class ApiController extends Controller
 			'document_status' => $shop_drawing->status,
 			'last_review' => $lastReview,
 			'current_user_level' => auth()->user()->getLevelInProject($package->project_id),
+			
+			'is_mk' => auth()->user()->isMKInProject($package->project_id),
+			'is_owner' => auth()->user()->isOwnerInProject($package->project_id),
 		]);
 	}
 

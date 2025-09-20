@@ -28,14 +28,11 @@ class DocumentPolicy
         return $user->projects()->where('id', $document->package->project_id)->exists();
     }
 
-    public function create(User $user): bool
-    {
-        $activeProjectId = session('active_project_id');
-        if (!$activeProjectId) {
-            return false;
-        }
-        return $user->isContractorInProject($activeProjectId);
-    }
+    public function create(User $user, Project $project): bool
+	{
+		// Langsung periksa apakah pengguna adalah kontraktor di proyek yang diberikan.
+		return $user->isContractorInProject($project->id);
+	}
 
     /**
      * PERBAIKAN FINAL: Aturan review yang lebih ketat.

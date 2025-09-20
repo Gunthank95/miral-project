@@ -94,7 +94,7 @@ class DocumentController extends Controller
 	
 	public function createSubmission(Package $package)
     {
-        $this->authorize('create', Document::class);
+        $this->authorize('create', [Document::class, $package->project]);
 
         // Ambil HANYA item RAB utama (yang tidak punya parent) untuk dropdown pertama.
         $mainRabItems = RabItem::where('package_id', $package->id)
@@ -310,7 +310,7 @@ class DocumentController extends Controller
      */
     public function storeSubmission(Request $request, Package $package)
     {
-        $this->authorize('create', Document::class);
+        $this->authorize('create', [Document::class, $package->project]);
 
         $validated = $request->validate([
             'document_number' => 'required|string|max:255',

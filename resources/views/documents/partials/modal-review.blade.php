@@ -77,9 +77,21 @@
 									{{-- SEDERHANAKAN PILIHANNYA --}}
 									<select x-model="reviewModal.form.disposition" id="disposition" name="disposition" class="mt-1 block w-full py-2 px-3 border border-gray-300 rounded-md" required>
 										<option value="">-- Pilih Keputusan --</option>
-										<option value="to_owner">Teruskan ke Owner</option>
-										<option value="to_revision">Kembalikan ke Kontraktor (Revisi)</option>
-									</select>                            
+										
+										<template x-if="reviewModal.details.is_mk && reviewModal.details.current_user_level == 60">
+											<optgroup label="Opsi Manajer Proyek (MK)">
+												<option value="to_owner">Teruskan ke Owner</option>
+												<option value="to_revision">Kembalikan ke Kontraktor (Revisi)</option>
+											</optgroup>
+										</template>
+
+										<template x-if="reviewModal.details.is_owner">
+											<optgroup label="Opsi Owner">
+												<option value="owner_approved">Final: Disetujui Owner</option>
+												<option value="owner_rejected">Final: Ditolak / Revisi</option>
+											</optgroup>
+										</template>
+									</select>                         
 								</div>
 							</div>
 						</div>

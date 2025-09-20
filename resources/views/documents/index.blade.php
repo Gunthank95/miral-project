@@ -10,7 +10,7 @@
                 <h1 class="text-2xl font-bold text-gray-800">Pusat Kendali Persetujuan Shop Drawing</h1>
                 <p class="text-sm text-gray-500">Proyek: {{ $package->project->name }} - Paket: {{ $package->name }}</p>
             </div>
-            @can('create', App\Models\Document::class)
+            @can('create', [App\Models\Document::class, $package->project])
             <a href="{{ route('documents.create_submission', ['package' => $package->id]) }}" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded">
                 + Ajukan Shop Drawing
             </a>

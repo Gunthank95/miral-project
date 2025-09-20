@@ -12,7 +12,39 @@
 @endpush
 
 @section('content')
-<div class="container mx-auto px-4 py-8" x-data="submissionForm()">
+<div class="container mx-auto px-4 py-8" x-data="{
+    drawings: [{ number: '', title: '' }],
+    rabItems: [{ main_id: '', sub_id: '', completion_status: 'belum_lengkap' }],
+    subRabOptions: [],
+
+    addDrawing() {
+        this.drawings.push({ number: '', title: '' });
+    },
+    removeDrawing(index) {
+        if (this.drawings.length > 1) {
+            this.drawings.splice(index, 1);
+        }
+    },
+    addRabItem() {
+        this.rabItems.push({ main_id: '', sub_id: '', completion_status: 'belum_lengkap' });
+    },
+    removeRabItem(index) {
+        if (this.rabItems.length > 1) {
+            this.rabItems.splice(index, 1);
+            this.subRabOptions.splice(index, 1);
+        }
+    },
+    updateSubRabOptions(index) {
+        const mainId = this.rabItems[index].main_id;
+        this.rabItems[index].sub_id = ''; // Reset pilihan sub item
+        if (mainId) {
+            const selectedOption = document.querySelector(`#main_rab_${index} option[value='${mainId}']`);
+            this.subRabOptions[index] = selectedOption ? JSON.parse(selectedOption.dataset.children) : [];
+        } else {
+            this.subRabOptions[index] = [];
+        }
+    }
+}">
     <div class="max-w-4xl mx-auto">
         <form action="{{ route('documents.store_submission', ['package' => $package->id]) }}" method="POST" enctype="multipart/form-data" class="space-y-8 bg-white overflow-hidden shadow-xl sm:rounded-lg p-6">
             @csrf
@@ -71,7 +103,7 @@
                         <select id="main_rab_item" placeholder="Pilih sub item utama...">
                             <option value="">Pilih sub item utama...</option>
                             @foreach ($mainRabItems as $item)
-                                <option value="{{ $item->id }}">{{ $item->item_number }} {{ $item->item_name }}</option>
+                                <option value="{{ $item->id }}" data-children='{{ json_encode($item->children) }}'>{{ $item->item_number }} {{ $item->item_name }}</option>
                             @endforeach
                         </select>
                     </div>

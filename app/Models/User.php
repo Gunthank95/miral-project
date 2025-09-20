@@ -134,58 +134,54 @@ class User extends Authenticatable
      * @param int $projectId
      * @return bool
      */
-    public function isContractorInProject($projectId): bool
-    {
-        // Jika pengguna tidak memiliki perusahaan, langsung kembalikan false.
-        if (!$this->company_id) {
-            return false;
-        }
+    public function isContractorInProject($projectId)
+	{
+		// Jika pengguna ini tidak memiliki company_id, dia tidak bisa menjadi bagian dari tim manapun.
+		if (!$this->company_id) {
+			return false;
+		}
 
-        // Cek di tabel pivot project_companies
-        return \Illuminate\Support\Facades\DB::table('project_companies')
-            ->where('project_id', $projectId)
-            ->where('company_id', $this->company_id)
-            ->where('role_in_project', 'like', 'Kontraktor%') // Menggunakan 'like' untuk mencakup 'Kontraktor - Paket A'
-            ->exists();
-    }
-	
+		// Cek di tabel project_companies apakah perusahaan pengguna ini memiliki peran 'kontraktor'
+		return \App\Models\ProjectCompany::where('project_id', $projectId)
+			->where('company_id', $this->company_id) // <-- Menggunakan company_id dari user
+			->where('role_in_project', 'kontraktor') // Sesuaikan dengan nama kolom Anda
+			->exists();
+	}
+
 	/**
-     * Memeriksa apakah perusahaan pengguna berperan sebagai MK di proyek tertentu.
-     *
-     * @param int $projectId
-     * @return bool
-     */
-    public function isMKInProject($projectId): bool
-    {
-        if (!$this->company_id) {
-            return false;
-        }
+	 * Memeriksa apakah pengguna adalah bagian dari tim MK di sebuah proyek.
+	 * PERBAIKAN: Mengambil company_id langsung dari user.
+	 */
+	public function isMKInProject($projectId)
+	{
+		if (!$this->company_id) {
+			return false;
+		}
 
-        return \Illuminate\Support\Facades\DB::table('project_companies')
-            ->where('project_id', $projectId)
-            ->where('company_id', $this->company_id)
-            ->where('role_in_project', 'like', 'MK%')
-            ->exists();
-    }
-	
+		// Cek di tabel project_companies apakah perusahaan pengguna ini memiliki peran 'mk'
+		return \App\Models\ProjectCompany::where('project_id', $projectId)
+			->where('company_id', $this->company_id) // <-- Menggunakan company_id dari user
+			->where('role_in_project', 'mk') // Sesuaikan dengan nama kolom Anda
+			->exists();
+	}
+
 	/**
-     * Memeriksa apakah perusahaan pengguna berperan sebagai Owner di proyek tertentu.
-     *
-     * @param int $projectId
-     * @return bool
-     */
-    public function isOwnerInProject($projectId): bool
-    {
-        if (!$this->company_id) {
-            return false;
-        }
-
-        return \Illuminate\Support\Facades\DB::table('project_companies')
-            ->where('project_id', $projectId)
-            ->where('company_id', $this->company_id)
-            ->where('role_in_project', 'like', 'Owner%')
-            ->exists();
-    }/**
+	 * Memeriksa apakah pengguna adalah bagian dari tim Owner di sebuah proyek.
+	 * PERBAIKAN: Mengambil company_id langsung dari user.
+	 */
+	public function isOwnerInProject($projectId)
+	{
+		if (!$this->company_id) {
+			return false;
+		}
+		
+		// Cek di tabel project_companies apakah perusahaan pengguna ini memiliki peran 'owner'
+		return \App\Models\ProjectCompany::where('project_id', $projectId)
+			->where('company_id', $this->company_id) // <-- Menggunakan company_id dari user
+			->where('role_in_project', 'owner') // Sesuaikan dengan nama kolom Anda
+			->exists();
+	}
+	/**
 	 * Mendefinisikan relasi ke model DocumentInternalReview.
 	 * Satu pengguna bisa melakukan banyak review internal.
 	 */
